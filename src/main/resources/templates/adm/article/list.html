@@ -14,13 +14,13 @@
 }
 </style>
 </head>
-<body class="bg-gradient-to-b from-[#e4f0b9] to-[#fcdca9]  min-h-[720px]">
+<body class="bg-gradient-to-b from-[#e4f0b9] to-[#fcdca9] h-screen min-h-dvh min-w-[1400px]">
 	<div class="flex h-screen">
 		<!-- Sidebar -->
 		<div th:replace="common :: siteHeader"></div>
 
 		<!-- Main content -->
-		<main class="main_page min-h-[720px] flex-1 p-6 grid grid-rows-12 gap-4 bg-white">
+		<main class="main_page h-full overflow-y-auto min-h-dvh box-border flex-1 p-6 grid grid-rows-12 gap-4 bg-white">
 
 			<h1 class="text-3xl font-bold mb-6">관리자 대시보드</h1>
 

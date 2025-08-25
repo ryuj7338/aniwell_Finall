@@ -65,10 +65,14 @@
             </form>
         </div>
 
-        <div class="mt-8 text-center">
-            <a th:href="@{/usr/member/myPage}"
-               class="text-blue-600 hover:underline text-sm">← 마이페이지로 돌아가기</a>
-        </div>
+		<div class="mt-8 text-center">
+		  <button type="button"
+		          class="text-blue-600 hover:underline text-sm"
+		          onclick="history.back()">
+		    ← 이전 페이지로
+		  </button>
+		</div>
+
     </div>
 
 </body>
