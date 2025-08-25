@@ -54,7 +54,7 @@ export default function MyPage() {
   if (!member) return <p>로딩 중...</p>;
 
   return (
-    <div className="flex mx-auto jutify-center">
+    <div className="flex mx-auto justify-center">
       <div className="p-6">
         <Sidebar />
       </div>
