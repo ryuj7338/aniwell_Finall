@@ -146,9 +146,7 @@
 
 					<div id="summaryCardMain"
 						class="relative bg-gradient-to-r from-[#DFF8E5] to-[#F4FBCC] rounded-xl p-4 text-center shadow hover:shadow-md transition-shadow duration-300 font-semibold cursor-pointer">
-						<a href="./detailPage.html">
-							상세 기입란
-						</a>
+				
 					</div>
 
 				</div>
@@ -449,120 +447,202 @@
 			let stompClient = null;
 			let subscription = null;
 
-			function renderChart(data) {
+			function renderFeedingCharts(data) {
+				if (!window.Chart) { console.error('Chart.js 로드 실패'); return; }
+
+				// 전역 배열/참조 사용
 				labels.length = deltas.length = bgColors.length = tooltipLabels.length = 0;
 				waterLabels.length = waterDeltas.length = waterBgColors.length = waterTooltipLabels.length = 0;
 				rawData.length = 0;
 
 				if (!Array.isArray(data)) {
-					console.error("❌ 배열 아님:", data);
-					alert("데이터 형식 오류");
+					try { weightChart?.destroy(); } catch {}
+					try { waterChart?.destroy(); } catch {}
+					weightChart = null; waterChart = null;
+					showEmptyState('weightChart', '데이터 형식 오류');
+					showEmptyState('waterChart',  '데이터 형식 오류');
 					return;
 				}
 
 				rawData.push(...data);
 				data.sort((a, b) => new Date(a.logDate) - new Date(b.logDate));
 
-				for (let i = 0; i < data.length; i++) {
-					const curr = data[i];
-					const label = new Date(curr.logDate).toTimeString().slice(0, 5);
+				for (const cur of data) {
+					const t = cur?.logDate ? new Date(cur.logDate).toTimeString().slice(0,5) : null;
 
-					if (curr.foodWeight !== null) {
-						const foodValue = parseFloat(curr.foodWeight).toFixed(2);
-						labels.push(label);
-						deltas.push(foodValue);
+					if (t !== null && cur.foodWeight !== null && cur.foodWeight !== undefined && !Number.isNaN(+cur.foodWeight)) {
+						const v = +(+cur.foodWeight).toFixed(2);
+						labels.push(t);
+						deltas.push(v);
 						bgColors.push('rgba(255, 193, 7, 0.4)');
-						tooltipLabels.push(`사료 섭취량: ${foodValue}g`);
+						tooltipLabels.push(`사료 섭취량: ${v}g`);
 					}
-					if (curr.waterWeight !== null) {
-						const waterValue = parseFloat(curr.waterWeight).toFixed(2);
-						waterLabels.push(label);
-						waterDeltas.push(waterValue);
+					if (t !== null && cur.waterWeight !== null && cur.waterWeight !== undefined && !Number.isNaN(+cur.waterWeight)) {
+						const v = +(+cur.waterWeight).toFixed(2);
+						waterLabels.push(t);
+						waterDeltas.push(v);
 						waterBgColors.push('rgba(30, 144, 255, 0.4)');
-						waterTooltipLabels.push(`물 섭취량: ${waterValue}g`);
+						waterTooltipLabels.push(`물 섭취량: ${v}g`);
 					}
 				}
 
-				const showFoodXAxis = labels.length > 0;
-				const showWaterXAxis = waterLabels.length > 0;
+				const hasFood  = labels.length > 0;
+				const hasWater = waterLabels.length > 0;
 
-				// ✅ 캔버스 크기 강제 세팅 후 컨텍스트 얻기
-				const foodCtx  = sizeCanvasAndGetCtx('weightChart');
-				const waterCtx = sizeCanvasAndGetCtx('waterChart');
+				let foodCtx = null, waterCtx = null;
+				try { foodCtx  = sizeCanvasAndGetCtx('weightChart'); } catch (e) { console.warn(e); }
+				try { waterCtx = sizeCanvasAndGetCtx('waterChart'); } catch (e) { console.warn(e); }
 
-
-				// 사료 차트
-				if (!weightChart) {
-					weightChart = new Chart(foodCtx, {
-						type: 'bar',
-						data: {
-							labels,
-							datasets: [{
-								label: '사료 섭취량',
-								data: deltas,
-								backgroundColor: bgColors,
-								borderColor: bgColors.map(c => c.replace('0.4', '1')),
-								borderWidth: 1
-							}]
-						},
-						options: {
-							responsive: true,
-							maintainAspectRatio: false,
-							scales: {
-								y: { title: { display: true, text: 'g' } },
-								x: { title: { display: true, text: '시간 (HH:MM)' }, display: showFoodXAxis }
-							},
-							plugins: {
-								tooltip: { callbacks: { label: ctx => tooltipLabels[ctx.dataIndex] } }
-							}
-						}
-					});
+				if (!hasFood) {
+					try { weightChart?.destroy(); } catch {}
+					weightChart = null; showEmptyState('weightChart', '사료 데이터가 없어요');
 				} else {
-					weightChart.data.labels = labels;
-					weightChart.data.datasets[0].data = deltas;
-					weightChart.data.datasets[0].backgroundColor = bgColors;
-					weightChart.data.datasets[0].borderColor = bgColors.map(c => c.replace('0.4', '1'));
-					weightChart.options.scales.x.display = showFoodXAxis;
-					weightChart.update();
-					setTimeout(() => { try { weightChart.resize(); } catch {} }, 0);
+					clearEmptyState('weightChart');
+				}
+				if (!hasWater) {
+					try { waterChart?.destroy(); } catch {}
+					waterChart = null; showEmptyState('waterChart', '물 데이터가 없어요');
+				} else {
+					clearEmptyState('waterChart');
 				}
 
-				// 물 차트
-				if (!waterChart) {
-					waterChart = new Chart(waterCtx, {
-						type: 'bar',
-						data: {
-							labels: waterLabels,
-							datasets: [{
-								label: '물 섭취량',
-								data: waterDeltas,
-								backgroundColor: waterBgColors,
-								borderColor: waterBgColors.map(c => c.replace('0.4', '1')),
-								borderWidth: 1
-							}]
-						},
-						options: {
-							responsive: true,
-							maintainAspectRatio: false,
-							scales: {
-								y: { title: { display: true, text: 'g' } },
-								x: { title: { display: true, text: '시간 (HH:MM)' }, display: showWaterXAxis }
+				const yFoodMin  = hasFood  ? Math.min(0, Math.min(...deltas)) : 0;
+				const yFoodMax  = hasFood  ? Math.max(0, Math.max(...deltas)) : 0;
+				const yWaterMin = hasWater ? Math.min(0, Math.min(...waterDeltas)) : 0;
+				const yWaterMax = hasWater ? Math.max(0, Math.max(...waterDeltas)) : 0;
+
+				if (hasFood && foodCtx) {
+					if (!weightChart) {
+						weightChart = new Chart(foodCtx, {
+							type: 'bar',
+							data: {
+								labels,
+								datasets: [{
+									label: '사료 섭취량',
+									data: deltas,
+									backgroundColor: bgColors,
+									borderColor: bgColors.map(c => c.replace('0.4', '1')),
+									borderWidth: 1
+								}]
 							},
-							plugins: {
-								tooltip: { callbacks: { label: ctx => waterTooltipLabels[ctx.dataIndex] } }
+							options: {
+								responsive: false,
+								maintainAspectRatio: false,
+								scales: {
+									y: {
+										beginAtZero: false,
+										suggestedMin: yFoodMin - Math.abs(yFoodMax - yFoodMin) * 0.1,
+										suggestedMax: yFoodMax + Math.abs(yFoodMax - yFoodMin) * 0.1,
+										title: { display: true, text: 'g' }
+									},
+									x: { title: { display: true, text: '시간 (HH:MM)' } }
+								},
+								plugins: { tooltip: { callbacks: { label: ctx => tooltipLabels[ctx.dataIndex] } } }
 							}
-						}
-					});
-				} else {
-					waterChart.data.labels = waterLabels;
-					waterChart.data.datasets[0].data = waterDeltas;
-					waterChart.data.datasets[0].backgroundColor = waterBgColors;
-					waterChart.data.datasets[0].borderColor = waterBgColors.map(c => c.replace('0.4', '1'));
-					waterChart.options.scales.x.display = showWaterXAxis;
-					waterChart.update();
-					setTimeout(() => { try { waterChart.resize(); } catch {} }, 0);
+						});
+					} else {
+						weightChart.data.labels = labels;
+						weightChart.data.datasets[0].data = deltas;
+						weightChart.data.datasets[0].backgroundColor = bgColors;
+						weightChart.data.datasets[0].borderColor = bgColors.map(c => c.replace('0.4', '1'));
+						weightChart.options.scales.y.suggestedMin = yFoodMin - Math.abs(yFoodMax - yFoodMin) * 0.1;
+						weightChart.options.scales.y.suggestedMax = yFoodMax + Math.abs(yFoodMax - yFoodMin) * 0.1;
+						weightChart.update();
+						setTimeout(() => { try { weightChart.resize(); } catch {} }, 0);
+					}
+				}
+
+				if (hasWater && waterCtx) {
+					if (!waterChart) {
+						waterChart = new Chart(waterCtx, {
+							type: 'bar',
+							data: {
+								labels: waterLabels,
+								datasets: [{
+									label: '물 섭취량',
+									data: waterDeltas,
+									backgroundColor: waterBgColors,
+									borderColor: waterBgColors.map(c => c.replace('0.4', '1')),
+									borderWidth: 1
+								}]
+							},
+							options: {
+								responsive: false,
+								maintainAspectRatio: false,
+								scales: {
+									y: {
+										beginAtZero: false,
+										suggestedMin: yWaterMin - Math.abs(yWaterMax - yWaterMin) * 0.1,
+										suggestedMax: yWaterMax + Math.abs(yWaterMax - yWaterMin) * 0.1,
+										title: { display: true, text: 'g' }
+									},
+									x: { title: { display: true, text: '시간 (HH:MM)' } }
+								},
+								plugins: { tooltip: { callbacks: { label: ctx => waterTooltipLabels[ctx.dataIndex] } } }
+							}
+						});
+					} else {
+						waterChart.data.labels = waterLabels;
+						waterChart.data.datasets[0].data = waterDeltas;
+						waterChart.data.datasets[0].backgroundColor = waterBgColors;
+						waterChart.data.datasets[0].borderColor = waterBgColors.map(c => c.replace('0.4', '1'));
+						waterChart.options.scales.y.suggestedMin = yWaterMin - Math.abs(yWaterMax - yWaterMin) * 0.1;
+						waterChart.options.scales.y.suggestedMax = yWaterMax + Math.abs(yWaterMax - yWaterMin) * 0.1;
+						waterChart.update();
+						setTimeout(() => { try { waterChart.resize(); } catch {} }, 0);
+					}
 				}
 			}
+
+
+			function openFeedingPanel(e) {
+				if (e) e.stopPropagation();
+				const panel = document.getElementById('feedingPanel');
+
+				// 보이게 만들고 슬라이드 시작
+				panel.classList.remove('invisible', 'pointer-events-none');
+				panel.getBoundingClientRect();                 // reflow
+				panel.classList.remove('translate-x-full');    // 슬라이드
+
+				let fired = false;
+				const afterOpen = async () => {
+					if (fired) return; fired = true;
+
+					// 패널이 펼쳐져 부모 width/height가 생길 때까지 대기
+					await waitForCanvasReady('weightChart');
+					await waitForCanvasReady('waterChart');
+
+					// 날짜 기본값 + 데이터 로드
+					if (dateInput) {
+						dateInput.value = todayStr;
+						loadDataAndDraw(todayStr);
+						loadLitterEvents(todayStr);
+						loadLitterSummary(todayStr);
+
+						if (!dateInput.__bound) {
+							dateInput.addEventListener('change', () => {
+								disconnectWebSocket();
+								loadDataAndDraw(dateInput.value);
+								loadLitterEvents(dateInput.value);
+								loadLitterSummary(dateInput.value);
+							});
+							dateInput.__bound = true;
+						}
+					}
+
+					// 혹시 이미 만들어진 차트가 있으면 사이즈 재계산
+					setTimeout(() => {
+						try { weightChart && weightChart.resize(); } catch {}
+						try { waterChart && waterChart.resize(); } catch {}
+					}, 0);
+				};
+
+				panel.addEventListener('transitionend', afterOpen, { once: true });
+				setTimeout(afterOpen, 500); // transition 이벤트 누락 대비
+			}
+
+
+
 
 			// 창 크기 바뀌면 다시 맞추기
 			window.addEventListener('resize', () => {
@@ -612,6 +692,31 @@
 				}
 			}
 
+			function sizeCanvasAndGetCtx(id) {
+				const c = document.getElementById(id);
+				if (!c) throw new Error(`#${id} 캔버스 없음`);
+
+				// 캔버스는 block으로
+				c.style.display = 'block';
+
+				const parent = c.parentElement;
+				if (!parent) throw new Error(`#${id} 부모 없음`);
+
+				// 부모가 translate로 화면 밖이거나 아직 레이아웃 0일 수 있음 → 안전한 최소값
+				const box = parent.getBoundingClientRect();
+				const safeW = Math.max(240, Math.floor(box.width  || 0));
+				const safeH = Math.max(160, Math.floor(box.height || 0));
+
+				// 속성(width/height)로 지정해야 Chart.js가 정확히 그림
+				c.width  = safeW;
+				c.height = safeH;
+
+				const ctx = c.getContext('2d');
+				if (!ctx) throw new Error(`#${id} 2D 컨텍스트 없음`);
+				return ctx;
+			}
+
+
 			function loadDataAndDraw(dateStr) {
 				if (!dateStr) dateStr = todayStr;
 
@@ -630,47 +735,72 @@
 							else disconnectWebSocket();
 
 							// 항상 “파괴 후 재생성” 전략을 쓰도록 renderChart가 destroy → create 하게 구현되어 있음
-							renderChart(data);
+							renderFeedingCharts(data)
 						})
 						.catch(err => {
 							console.error("🚨 데이터 로딩 실패:", err);
-							renderChart([]); // 비어도 축/프레임은 보이게
+							renderFeedingCharts([]) // 비어도 축/프레임은 보이게
 						});
 			}
 
-			// 부모 박스 크기로 캔버스의 '속성' width/height를 강제 세팅
-			function sizeCanvasAndGetCtx(id) {
-				const c = document.getElementById(id);
-				if (!c) throw new Error(`#${id} 캔버스 없음`);
-				const parent = c.parentElement; // p-4 박스가 부모
-				const box = parent.getBoundingClientRect();
-
-				// 속성으로 꼭 넣어야 Chart.js가 정확히 그림
-				c.width  = Math.max(100, Math.floor(box.width));
-				c.height = Math.max(160, Math.floor(box.height));
-
-				return c.getContext('2d');
-			}
 		</script>
 
 		<script>
+
+			async function waitForCanvasReady(id, tries = 40){
+				// 40회 × 25ms ≈ 1초 대기
+				for (let i = 0; i < tries; i++) {
+					const c = document.getElementById(id);
+					const p = c?.parentElement;
+					if (c && p) {
+						const r = p.getBoundingClientRect();
+						// translate-x-full 이면 width가 0에 가깝습니다
+						if (r.width > 20 && r.height > 20) return true;
+					}
+					await new Promise(r => setTimeout(r, 25));
+				}
+				return false;
+			}
+
+
+			function showEmptyState(canvasId, text){
+				const c = document.getElementById(canvasId);
+				if(!c) return;
+				const parent = c.parentElement;
+				if(!parent) return;
+
+				// 오버레이 기준점
+				const cs = getComputedStyle(parent);
+				if (cs.position === 'static') parent.style.position = 'relative';
+
+				// 기존 힌트 제거
+				parent.querySelector('[data-empty-hint="1"]')?.remove();
+
+				const hint = document.createElement('div');
+				hint.setAttribute('data-empty-hint', '1');
+				hint.style.position = 'absolute';
+				hint.style.inset = '0';
+				hint.style.display = 'flex';
+				hint.style.alignItems = 'center';
+				hint.style.justifyContent = 'center';
+				hint.style.fontSize = '14px';
+				hint.style.color = '#6b7280';
+				hint.style.pointerEvents = 'none'; // 차트 동작 방해 X
+				hint.textContent = text || '데이터 없음';
+				parent.appendChild(hint);
+			}
+			function clearEmptyState(canvasId){
+				const parent = document.getElementById(canvasId)?.parentElement;
+				parent?.querySelector('[data-empty-hint="1"]')?.remove();
+			}
+
+
+
 			async function debugFeedingPanel() {
 				const foodC  = document.getElementById('weightChart');
 				const waterC = document.getElementById('waterChart');
 
-				// 1) DOM/사이즈 확인
-				const info = {
-					foodCanvasExists: !!foodC,
-					waterCanvasExists: !!waterC,
-					foodParentRect: foodC?.parentElement?.getBoundingClientRect(),
-					waterParentRect: waterC?.parentElement?.getBoundingClientRect(),
-					foodCanvasStyleWH: {w: foodC?.style?.width, h: foodC?.style?.height},
-					waterCanvasStyleWH:{w: waterC?.style?.width, h: waterC?.style?.height},
-					petId, todayStr
-				};
-				console.log('[DEBUG] feeding panel info:', info);
-
-				// 2) 사이즈가 0이면 강제 세팅
+				// 1) DOM/사이즈 확인 + 강제 세팅
 				function forceSize(c) {
 					if (!c) return;
 					const box = c.parentElement.getBoundingClientRect();
@@ -680,88 +810,49 @@
 				forceSize(foodC);
 				forceSize(waterC);
 
-				console.log('[DEBUG] after force size:', { foodW: foodC?.width, foodH: foodC?.height, waterW: waterC?.width, waterH: waterC?.height });
+				console.log('[DEBUG] feeding panel canvases:',
+						{ foodW: foodC?.width, foodH: foodC?.height, waterW: waterC?.width, waterH: waterC?.height });
 
-				// 3) API 실제 응답 확인 (에러면 메시지 보여줌)
+				// 2) API 실제 응답 확인
 				try {
-					const r = await fetch(`/usr/pet/health/logs?petId=${petId}&date=${dateInput?.value || todayStr}`);
+					const r = await fetch(`/usr/pet/health/logs?petId=${petId}&date=${dateInput?.value || todayStr}`, {
+						cache: 'no-store', headers: { 'Accept': 'application/json' }
+					});
 					console.log('[DEBUG] fetch status:', r.status);
 					const js = await r.json();
-					console.log('[DEBUG] api json:', js);
+					console.log('[DEBUG] api json length:', Array.isArray(js) ? js.length : 'N/A');
 
-					// 4) 차트 자체가 그려지는지 “샘플 데이터”로 먼저 확인
-					const sampleFood  = [{t:'08:10', v:5.2}, {t:'12:30', v:3.1}, {t:'18:05', v:4.0}];
-					const sampleWater = [{t:'09:00', v:120}, {t:'14:20', v:80}, {t:'21:10', v:150}];
-
-					// 캔버스 컨텍스트
-					const foodCtx  = foodC.getContext('2d');
-					const waterCtx = waterC.getContext('2d');
-
-					// 기존 인스턴스 있으면 파괴
-					try { weightChart && weightChart.destroy(); } catch {}
-					try { waterChart  && waterChart.destroy(); } catch {}
-
-					// 샘플로 먼저 그려본다 (차트/사이즈 문제가 있으면 여기서도 안 보임)
-					weightChart = new Chart(foodCtx, {
-						type: 'bar',
-						data: {
-							labels: sampleFood.map(x=>x.t),
-							datasets: [{label:'사료(샘플)', data: sampleFood.map(x=>x.v)}]
-						},
-						options:{responsive:false, maintainAspectRatio:false}
-					});
-					waterChart = new Chart(waterCtx, {
-						type: 'bar',
-						data: {
-							labels: sampleWater.map(x=>x.t),
-							datasets: [{label:'물(샘플)', data: sampleWater.map(x=>x.v)}]
-						},
-						options:{responsive:false, maintainAspectRatio:false}
-					});
-
-					console.log('[DEBUG] charts drawn with sample');
-
-					// 5) 샘플이 보이면, 실제 데이터로 교체 시도
 					if (Array.isArray(js) && js.length) {
-						const food = js.filter(x => x.foodWeight != null)
-								.map(x => ({t: new Date(x.logDate).toTimeString().slice(0,5), v: +(+x.foodWeight).toFixed(2)}));
-						const water = js.filter(x => x.waterWeight != null)
-								.map(x => ({t: new Date(x.logDate).toTimeString().slice(0,5), v: +(+x.waterWeight).toFixed(2)}));
-
-						if (food.length || water.length) {
-							if (food.length) {
-								weightChart.data.labels = food.map(x=>x.t);
-								weightChart.data.datasets[0].label = '사료 섭취량';
-								weightChart.data.datasets[0].data  = food.map(x=>x.v);
-								weightChart.update();
-							}
-							if (water.length) {
-								waterChart.data.labels = water.map(x=>x.t);
-								waterChart.data.datasets[0].label = '물 섭취량';
-								waterChart.data.datasets[0].data  = water.map(x=>x.v);
-								waterChart.update();
-							}
-							console.log('[DEBUG] replaced sample with real data');
-						} else {
-							console.warn('[DEBUG] API에 데이터가 없음(오늘 또는 선택일 비어있음). 샘플만 보임이 정상.');
-						}
+						renderFeedingCharts(js);              // ✅ 실제 데이터로 바로 렌더
 					} else {
-						console.warn('[DEBUG] API 배열 아님 or empty. 샘플만 보임이 정상.', js);
+						// ✅ 데이터 없음 → 차트 파괴 + 힌트
+						try { weightChart && weightChart.destroy(); } catch {}
+						try { waterChart  && waterChart.destroy(); } catch {}
+						weightChart = null; waterChart = null;
+						showEmptyState('weightChart', '사료 데이터가 없어요');
+						showEmptyState('waterChart',  '물 데이터가 없어요');
 					}
-
 				} catch (e) {
 					console.error('[DEBUG] fetch/json error:', e);
-					alert('데이터 응답에 문제가 있습니다. 콘솔 로그를 확인해 주세요.');
+					try { weightChart && weightChart.destroy(); } catch {}
+					try { waterChart  && waterChart.destroy(); } catch {}
+					weightChart = null; waterChart = null;
+					showEmptyState('weightChart', '데이터 응답 오류');
+					showEmptyState('waterChart',  '데이터 응답 오류');
 				}
 			}
+
 		</script>
 
 
 		<script>
 			// 패널 열기: 완전히 열린 뒤 load + 렌더
 			function openFeedingPanel(e) {
+				// URL에 ?debugCharts=1 있을 때만 디버그 호출
+				if (new URLSearchParams(location.search).get('debugCharts') === '1') {
+					setTimeout(debugFeedingPanel, 0);
+				}
 
-				setTimeout(debugFeedingPanel, 0);
 				if (e) e.stopPropagation();
 				const panel = document.getElementById('feedingPanel');
 
@@ -780,6 +871,7 @@
 						loadDataAndDraw(todayStr);
 						loadLitterEvents(todayStr);
 						loadLitterSummary(todayStr);
+
 						if (!dateInput.__bound) {
 							dateInput.addEventListener('change', () => {
 								disconnectWebSocket();
@@ -1450,17 +1542,19 @@
 			// 차트 렌더 (존별 1줄)
 			function renderChart(list) {
 				chartArea.innerHTML = '';
+				const wrapper = document.getElementById('activityChartWrapper'); // ✅ 추가
 
 				if (!Array.isArray(list) || list.length === 0) {
 					noDataEl?.classList.remove('hidden');
+					wrapper?.classList.add('hidden');      // ✅ 그리드/눈금 숨김
 					renderLegend([]);
 					return;
 				}
 				noDataEl?.classList.add('hidden');
+				wrapper?.classList.remove('hidden');
 
 				list.sort((a, b) => new Date(a.enteredAt) - new Date(b.enteredAt));
-				const startOfDay = new Date(list[0].enteredAt);
-				startOfDay.setHours(0, 0, 0, 0);
+				const SOD = new Date(); SOD.setHours(0,0,0,0);
 
 				const ORDER = ['거실', '침실', '기타'];
 				const zones = Array.from(new Set(list.map(x => x.zoneName)))
@@ -1485,7 +1579,7 @@
 					const entered = new Date(it.enteredAt);
 					const exited = new Date(it.exitedAt);
 					const durSec = Math.max(0, (exited - entered) / 1000);
-					const offSec = Math.max(0, (entered - startOfDay) / 1000);
+					const offSec = Math.max(0, (entered - SOD) / 1000);
 
 					const leftPx = (offSec / 3600) * PX_PER_HOUR;
 					const widthPx = Math.max((durSec / 3600) * PX_PER_HOUR, MIN_BAR_PX);
@@ -1511,20 +1605,65 @@
 			}
 
 			// 서버 호출
+			// 최소 머문 시간(초) — 필요하면 60, 120 등으로 조절
+			const MIN_DUR_SEC = 30;
+
+			function normalizeRow(x) {
+				const s = new Date(x.enteredAt);
+				let e = x.exitedAt ? new Date(x.exitedAt) : null;
+
+				if (!e || e < s) {
+					if (x.durationSec && !Number.isNaN(+x.durationSec)) {
+						e = new Date(s.getTime() + (+x.durationSec) * 1000);
+					} else {
+						e = new Date(s.getTime() + 60 * 1000); // 최소 1분짜리로 가드
+					}
+				}
+				return { ...x, _in: s, _out: e };
+			}
+
+			function startOfDayLocal(d){
+				const x = new Date(d);
+				x.setHours(0,0,0,0);
+				return x;
+			}
+			function endOfDayLocal(d){
+				const x = new Date(d);
+				x.setHours(23,59,59,999);
+				return x;
+			}
+
 			async function loadActivities() {
 				try {
 					const pid = window.petId ?? (Number(localStorage.getItem('selectedPetId')) || null);
 					const url = `/usr/petJ/activity${pid ? `?petId=${pid}` : ''}`;
-					const res = await fetch(url, {headers: {'Accept': 'application/json'}});
+					const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
 					if (!res.ok) throw new Error(`HTTP ${res.status}`);
 					const json = await res.json();
+
+					// 오늘 0~24시
+					const SOD = new Date(); SOD.setHours(0,0,0,0);
+					const EOD = new Date(); EOD.setHours(23,59,59,999);
 
 					let list = [];
 					if (Array.isArray(json?.data1)) list = json.data1;
 					else if (typeof json?.data2 === 'string' && json.data2.trim()) {
-						try {list = JSON.parse(json.data2);} catch { }
+						try { list = JSON.parse(json.data2); } catch {}
 					}
-					list = (list || []).filter(x => x?.enteredAt && x?.exitedAt);
+
+					list = (list || [])
+							.filter(x => x?.zoneName && x?.enteredAt)       // 최소 필드
+							.map(normalizeRow)                               // 종료시각 보정
+							.filter(x => x._out > SOD && x._in < EOD)        // ✅ 오늘과 '겹치면' 통과
+							// 오늘 범위로 클램프
+							.map(x => {
+								const cin  = x._in  < SOD ? new Date(SOD) : x._in;
+								const cout = x._out > EOD ? new Date(EOD) : x._out;
+								return { ...x, enteredAt: cin.toISOString(), exitedAt: cout.toISOString() };
+							})
+							// 최소 지속시간(보정 후 기준)
+							.filter(x => (new Date(x.exitedAt) - new Date(x.enteredAt)) / 1000 >= MIN_DUR_SEC);
+
 					renderChart(list);
 				} catch (e) {
 					console.error('[loadActivities] error:', e);
@@ -1532,12 +1671,21 @@
 				}
 			}
 
-			// 초기화
-			renderTimeGrid();
-			loadActivities();
 
-			// 외부에서 재호출용
-			window.__reloadActivityTimeline = loadActivities;
+			(function initActivityTimeline() {
+				const run = () => {
+					renderTimeGrid();
+					loadActivities();
+					// 패널 닫을 때 새로고침용
+					window.__reloadActivityTimeline = loadActivities;
+				};
+				if (document.readyState === 'loading') {
+					document.addEventListener('DOMContentLoaded', run);
+				} else {
+					run();
+				}
+			})();
+
 		</script>
 
 		<script>

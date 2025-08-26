@@ -28,7 +28,7 @@ public class SecurityConfig {
         return http
                 .securityMatcher(new OrRequestMatcher(
                         new AntPathRequestMatcher("/api/litter/**")
-                        // 프록시 프리픽스까지 잡고 싶으면 ↓ 한 줄 추가해도 됨(문제 없음, AntPath 사용)
+                        // 프록시 프리픽스까지 잡고 싶으면 ↓ 한 줄 추가해도 됨
                         // , new AntPathRequestMatcher("/**/api/litter/**")
                 ))
                 .cors(Customizer.withDefaults())
@@ -39,7 +39,9 @@ public class SecurityConfig {
                 .build();
     }
 
-    /** ===== B) API 체인: /api/** ===== */
+    /**
+     * ===== B) API 체인: /api/** =====
+     */
     @Bean
     @Order(0)
     public SecurityFilterChain apiChain(HttpSecurity http) throws Exception {
@@ -50,24 +52,29 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/api/verify/**").permitAll()   // ✅ send/check 전체 허용
                         .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/pet/report",
                                 "/api/pet/weight-timeline"
                         ).permitAll()
+                        .requestMatchers("/api/verify/sms/**").permitAll()
                         .requestMatchers("/api/pet/**").authenticated()
                         .requestMatchers("/api/member/**").authenticated()
                         .anyRequest().permitAll()
                 )
+                // ✅ 인증이 비어 있어도 익명 접근 허용
+                .anonymous(Customizer.withDefaults())
                 .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)));
         return http.build();
     }
+
     @Bean
     @Order(1)
     public SecurityFilterChain appChain(HttpSecurity http) throws Exception {
         http
                 .cors(Customizer.withDefaults())
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/usr/**"))
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/usr/**", "/api/**"))
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                         .sessionFixation(sessionFixation -> sessionFixation.none())
@@ -79,11 +86,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/**").permitAll()
                         /* 정적/공개 리소스 */
                         .requestMatchers(
-                                "/", "/usr/home/main",
+                                "/", "/usr/home/main", "/usr/member/doModify",
                                 "/usr/member/login", "/usr/member/doLogin",
                                 "/usr/member/join", "/usr/member/doJoin",
                                 "/usr/member/doFindLoginId", "/usr/member/doFindLoginPw",
                                 "/usr/member/findLoginId", "/usr/member/findLoginPw",
+                                "/usr/member/doModify", "/usr/member/modify",
                                 "/usr/member/naver/**", "/usr/member/kakao/**", "/usr/member/google/**",
                                 "/usr/member/social-login",
                                 "/usr/member/firebase-session-login",
@@ -92,12 +100,15 @@ public class SecurityConfig {
                                 "/usr/member/getNicknameDup",
                                 "/usr/member/getCellphoneDup",
                                 "/css/**", "/js/**", "/img/**", "/img.socialLogin/**",
-                                "/resource/**", "/favicon.ico"
+                                "/resource/**",
+                                "/favicon.ico"   // ✅ favicon.ico 명시적으로 허용
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/usr/pet/daily/**").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/usr/pet/daily/**").permitAll()
                         .anyRequest().authenticated()
                 )
+                // ✅ app 체인으로 들어온 /api/** 가 보호 자원으로 인식되어도 리다이렉트 방지
+                .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .formLogin(login -> login
                         .loginPage("/usr/member/login")
                         .defaultSuccessUrl("/", false)
@@ -129,7 +140,7 @@ public class SecurityConfig {
                 "http://localhost:3001",
                 "http://localhost:8080"
         ));
-        cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
+        cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
         cfg.setExposedHeaders(List.of("Location"));
         cfg.setAllowCredentials(true);

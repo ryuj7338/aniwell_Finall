@@ -32,9 +32,9 @@ public class PetNotificationScheduler {
         List<Pet> upcomingBirthdays = petRepository.findPetsWithBirthdayInDays(List.of(0, 3, 7));
         for (Pet pet : upcomingBirthdays) {
             String title = "🎉 " + pet.getName() + "의 생일이 " + formatDdayText(getBirthdayDday(pet.getBirthDate()));
-            String link = "/usr/pet/list";
             int loginMemberId = pet.getMemberId();
             int petId = pet.getId();
+            String link = "/usr/pet/petPage?petId="+petId;
             notificationService.addNotification(loginMemberId, petId, "birthday", title, link);
         }
         System.out.println("[알림 스케줄러] 생일 대상 수: " + upcomingBirthdays.size());
@@ -45,10 +45,11 @@ public class PetNotificationScheduler {
         for (PetVaccination vac : dueVaccines) {
             String title = "💉 " + vac.getPetName() + "의 " + vac.getVaccineName()
                     + " 백신 접종일이 " + formatDdayText(getDday(vac.getNextDueDate()));
-            String link = "";
             Pet pet = petRepository.getPetsById(vac.getPetId());
             int loginMemberId = pet.getMemberId();
             int petId = vac.getPetId();
+
+            String link = "/usr/pet/petPage?petId="+petId;
             notificationService.addNotification(loginMemberId, petId, "vaccine", title, link);
         }
         System.out.println("[알림 스케줄러] 백신 대상 수: " + dueVaccines.size());

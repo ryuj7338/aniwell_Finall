@@ -8,7 +8,7 @@ spring:
     host: smtp.sendgrid.net
     port: 587
     username: apikey
-    password:  # 푸시할 떄마다 지우기
+    password:    # 푸시할 떄마다 지우기
     properties:
       mail.smtp.auth: true
       mail.smtp.starttls.enable: true
@@ -111,3 +111,11 @@ aniwell:
 openai:
   api-base: https://api.openai.com/v1
   api-key:
+coolsms:
+  api-key: "NCSLRRMCPV4OBR2T"
+  api-secret: "BNGFKQLLVYVE6I9MI0UJUBSM9MTGRB5P"
+  domain: https://api.coolsms.co.kr
+  from: "01083537338"   # 콘솔에 등록된 발신번호
+  ttl-seconds: 180       # 인증코드 유효시간(초)
+  cooldown-seconds: 60   # 재전송 쿨다운
+

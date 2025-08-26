@@ -186,6 +186,12 @@
     cursor: pointer;
 }
 
+/* 인증 버튼 비활성화 시 표시 */
+.auth[disabled] {
+    opacity: .6;
+    cursor: not-allowed;
+}
+
 .ser {
     margin: auto;
     top: -40px;

@@ -1,9 +1,7 @@
-
-
 function openComModal(contentHTML) {
-	const modal = document.getElementById('comModal');
+    const modal = document.getElementById('comModal');
 
-	modal.innerHTML = `
+    modal.innerHTML = `
     <div onclick="closeCommentModal()" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
       <div onclick="event.stopPropagation()" class="bg-white p-8 rounded-2xl shadow-xl relative w-[600px] max-w-full">
         <!-- 닫기 버튼 -->
@@ -13,29 +11,29 @@ function openComModal(contentHTML) {
     </div>
   `;
 
-	modal.classList.remove("hidden");
-	modal.classList.remove("translate-y-full");
+    modal.classList.remove("hidden");
+    modal.classList.remove("translate-y-full");
 
-	// 이벤트 핸들러도 다시 바인딩
-	document.getElementById("closeModalBtn").addEventListener("click", closeCommentModal);
+    // 이벤트 핸들러도 다시 바인딩
+    document.getElementById("closeModalBtn").addEventListener("click", closeCommentModal);
 }
 
 
 function closeCommentModal() {
-	const modal = document.getElementById("comModal");
+    const modal = document.getElementById("comModal");
 
-	// 이동 효과 제거
-	modal.classList.add("translate-y-full");
-	// ⭐ 살짝 delay 후 hidden 처리
-	setTimeout(() => {
-		modal.classList.add("hidden");
-		modal.innerHTML = ''; // 내용도 제거 (선택)
-	}, 300); // 애니메이션 시간에 맞게 설정 (Tailwind 기본은 300ms)
+    // 이동 효과 제거
+    modal.classList.add("translate-y-full");
+    // ⭐ 살짝 delay 후 hidden 처리
+    setTimeout(() => {
+        modal.classList.add("hidden");
+        modal.innerHTML = ''; // 내용도 제거 (선택)
+    }, 300); // 애니메이션 시간에 맞게 설정 (Tailwind 기본은 300ms)
 }
 
 function addPet() {
 
-	const html = `
+    const html = `
 	<div>
 	  <!-- 제목 -->
 	  <h2 class="text-2xl font-bold mb-4 flex items-center gap-2">
@@ -117,6 +115,7 @@ function addPet() {
 
 	        <!-- 사료 종류 + 브랜드 -->
 	        <div>
+
 	          <label for="foodType" class="block text-sm font-medium mb-1">사료 종류</label>
 	          <select id="feedType" name="feedType" class="w-full border rounded px-3 py-1.5">
 	            <option value="">선택</option>
@@ -157,20 +156,33 @@ function addPet() {
 	</div>
 	`;
 
-	openComModal(html);
+    openComModal(html);
 
-	setTimeout(() => {
-		const form = document.getElementById("addPetForm");
-		if (form) {
-			form.addEventListener("submit", submitPetForm);
-		}
-	}, 0);
+    setTimeout(() => {
+        const form = document.getElementById("addPetForm");
+        if (form) {
+            form.addEventListener("submit", submitPetForm);
+        }
+    }, 0);
 }
 
 
+function previewPhoto(input) {
+    const preview = document.getElementById('photo-preview');
+    const file = input.files[0];
+
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            preview.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
 function modifyPet(pet) {
 
-	const html = `
+    const html = `
 	<div>
 	  <h2 class="text-2xl font-bold mb-4 flex items-center gap-2">
 	    🐾 <span>반려동물 정보 수정</span>
@@ -350,147 +362,145 @@ function modifyPet(pet) {
 	</div>
 	`;
 
-	openComModal(html);
+    openComModal(html);
 
-	setTimeout(() => {
-		const form = document.getElementById("modifyPetForm");
-		if (form) {
-			form.addEventListener("submit", submitModifyForm);
-		}
-	}, 0);
+    setTimeout(() => {
+        const form = document.getElementById("modifyPetForm");
+        if (form) {
+            form.addEventListener("submit", submitModifyForm);
+        }
+    }, 0);
 }
 
 function submitPetForm(e) {
-	e.preventDefault(); // 기본 form 제출 막기
+    e.preventDefault(); // 기본 form 제출 막기
 
-	const form = e.target;
-	const formData = new FormData(form);
+    const form = e.target;
+    const formData = new FormData(form);
 
-	fetch("/usr/pet/doJoin", {
-		method: "POST",
-		body: formData
-	})
-		.then(res => res.text())
-		.then(result => {
-			const [resultCode, msg] = result.split(",");
+    fetch("/usr/pet/doJoin", {
+        method: "POST",
+        body: formData
+    })
+        .then(res => res.text())
+        .then(result => {
+            const [resultCode, msg] = result.split(",");
 
-			if (resultCode === "S-1") {
-				Toast.fire({
-					icon: "success",
-					title: msg
-				});
+            if (resultCode === "S-1") {
+                Toast.fire({
+                    icon: "success",
+                    title: msg
+                });
 
-				closeCommentModal?.(); // ⛳ 모달 닫기
-				setTimeout(() => location.reload(), 1000);
-			} else {
-				Toast.fire({
-					icon: "error",
-					title: "등록 실패!"
-				});
-			}
-		})
-		.catch(err => {
-			console.error("❌ 서버 오류:", err);
-			Toast.fire({
-				icon: "error",
-				title: "⚠️ 오류가 발생했습니다. 다시 시도해주세요."
-			});
-		});
+                closeCommentModal?.(); // ⛳ 모달 닫기
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                Toast.fire({
+                    icon: "error",
+                    title: "등록 실패!"
+                });
+            }
+        })
+        .catch(err => {
+            console.error("❌ 서버 오류:", err);
+            Toast.fire({
+                icon: "error",
+                title: "⚠️ 오류가 발생했습니다. 다시 시도해주세요."
+            });
+        });
 }
 
 
-
-
 function submitModifyForm(e) {
-	e.preventDefault();
-	console.log("Toast 상태:", typeof Toast);
+    e.preventDefault();
+    console.log("Toast 상태:", typeof Toast);
 
-	const form = document.getElementById('modifyPetForm');
-	const formData = new FormData(form);
+    const form = document.getElementById('modifyPetForm');
+    const formData = new FormData(form);
 
-	fetch('/usr/pet/doModify', {
-		method: 'POST',
-		body: formData
-	})
-		.then(res => res.text())  // 응답이 문자열 형태 "S-1,수정되었습니다!"
-		.then(data => {
-			const [resultCode, msg] = data.split(",");
+    fetch('/usr/pet/doModify', {
+        method: 'POST',
+        body: formData
+    })
+        .then(res => res.text())  // 응답이 문자열 형태 "S-1,수정되었습니다!"
+        .then(data => {
+            const [resultCode, msg] = data.split(",");
 
-			if (resultCode === "S-1") {
-				// ✅ 성공 시 알림 메시지 요청
-				fetch('/toast/doModify', {
-					method: 'POST'
-				})
-					.then(res => res.json())  // 이미 JSON 파싱됨
-					.then(toastData => {
-						Toast.fire({
-							icon: 'success',
-							title: toastData.msg || '수정 성공!'
-						});
+            if (resultCode === "S-1") {
+                // ✅ 성공 시 알림 메시지 요청
+                fetch('/toast/doModify', {
+                    method: 'POST'
+                })
+                    .then(res => res.json())  // 이미 JSON 파싱됨
+                    .then(toastData => {
+                        Toast.fire({
+                            icon: 'success',
+                            title: toastData.msg || '수정 성공!'
+                        });
 
-						closeCommentModal?.();
-						setTimeout(() => location.reload(), 1000);
-					})
-					.catch(err => {
-						console.warn('⚠️ 응답 JSON 파싱 실패:', err);
-						Toast.fire({
-							icon: 'success',
-							title: '수정되었습니다!'
-						});
-						setTimeout(() => location.reload(), 1000);
-					});
-			} else {
-				Toast.fire({
-					icon: 'error',
-					title: msg || '수정 실패!'
-				});
-			}
-		})
-		.catch(err => {
-			console.error("❌ 수정 중 오류:", err);
-			Toast.fire({
-				icon: 'error',
-				title: '에러 발생',
-				text: '서버 오류가 발생했습니다.'
-			});
-		});
+                        closeCommentModal?.();
+                        setTimeout(() => location.reload(), 1000);
+                    })
+                    .catch(err => {
+                        console.warn('⚠️ 응답 JSON 파싱 실패:', err);
+                        Toast.fire({
+                            icon: 'success',
+                            title: '수정되었습니다!'
+                        });
+                        setTimeout(() => location.reload(), 1000);
+                    });
+            } else {
+                Toast.fire({
+                    icon: 'error',
+                    title: msg || '수정 실패!'
+                });
+            }
+        })
+        .catch(err => {
+            console.error("❌ 수정 중 오류:", err);
+            Toast.fire({
+                icon: 'error',
+                title: '에러 발생',
+                text: '서버 오류가 발생했습니다.'
+            });
+        });
 }
 
 
 function petDelete() {
-	const petId = document.querySelector('input[name="petId"]')?.value;
+    const petId = document.querySelector('input[name="petId"]')?.value;
 
-	if (!petId) {
-		Toast.fire({
-			icon: 'error',
-			title: '펫 ID를 찾을 수 없습니다.'
-		});
-		return;
-	}
+    if (!petId) {
+        Toast.fire({
+            icon: 'error',
+            title: '펫 ID를 찾을 수 없습니다.'
+        });
+        return;
+    }
 
-	if (!confirm("정말 삭제하시겠습니까?")) return;
+    if (!confirm("정말 삭제하시겠습니까?")) return;
 
-	fetch('/usr/pet/delete?petId=' + encodeURIComponent(petId), {
-		method: 'POST'
-	})
-		.then(res => res.json())
-		.then(data => {
-			const { resultCode, msg } = data;
+    fetch('/usr/pet/delete?petId=' + encodeURIComponent(petId), {
+        method: 'POST'
+    })
+        .then(res => res.json())
+        .then(data => {
+            const {resultCode, msg} = data;
 
-			Toast.fire({
-				icon: resultCode === 'S-1' ? 'success' : 'error',
-				title: msg || (resultCode === 'S-1' ? '삭제 성공!' : '삭제 실패!')
-			});
+            Toast.fire({
+                icon: resultCode === 'S-1' ? 'success' : 'error',
+                title: msg || (resultCode === 'S-1' ? '삭제 성공!' : '삭제 실패!')
+            });
 
-			if (resultCode === "S-1") {
-				setTimeout(() => location.reload(), 1000);
-			}
-		})
-		.catch(err => {
-			console.error("❌ 삭제 중 오류:", err);
-			Toast.fire({
-				icon: 'error',
-				title: '서버 오류 발생'
-			});
-		});
+            if (resultCode === "S-1") {
+                setTimeout(() => location.reload(), 1000);
+            }
+        })
+        .catch(err => {
+            console.error("❌ 삭제 중 오류:", err);
+            Toast.fire({
+                icon: 'error',
+                title: '서버 오류 발생'
+            });
+        });
 }

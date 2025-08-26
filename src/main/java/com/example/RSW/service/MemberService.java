@@ -72,10 +72,9 @@ public class MemberService {
     }
 
     private void setTempPassword(Member actor, String tempPassword) {
-        String encodedPw = passwordEncoder.encode(tempPassword);
+        String encodedPw = Ut.sha256(tempPassword);
         memberRepository.modify(actor.getId(), encodedPw, null, null, null, null, null, null);
     }
-
 
     public ResultData<Integer> join(String loginId, String loginPw, String name, String nickname, String cellphone,
                                     String email, String address, String authName, int authLevel) {
@@ -106,11 +105,11 @@ public class MemberService {
             return ResultData.from("F-8", Ut.f("이미 사용중인 이름(%s)과 이메일(%s)입니다", name, email));
         }
 
-        // ✅ 비밀번호 암호화
-        String encodedPw = passwordEncoder.encode(loginPw);
+        // ✅ 비밀번호 암호화: SHA-256로 통일
+        String encodedPw = (loginPw != null && loginPw.matches("^[0-9a-fA-F]{64}$"))
+                ? loginPw
+                : Ut.sha256(loginPw);
 
-
-        // 회원 저장 (원문 비번 null, 전화번호는 digits)
         memberRepository.doJoin(loginId, encodedPw, name, nickname, digits, email, address, authName, authLevel);
 
         // 최근 삽입된 회원 ID 조회
@@ -138,9 +137,10 @@ public class MemberService {
     public ResultData modify(int loginedMemberId, String loginPw, String name, String nickname, String cellphone,
                              String email, String photo, String address) {
 
-        String encoded = loginPw != null && !loginPw.trim().isEmpty()
-                ? passwordEncoder.encode(loginPw)
-                : null;
+        String encoded = null;
+        if (loginPw != null && !loginPw.trim().isEmpty()) {
+            encoded = loginPw.matches("^[0-9a-fA-F]{64}$") ? loginPw : Ut.sha256(loginPw);
+        }
 
         String digits = cellphone == null ? null : cellphone.replaceAll("\\D", "");
 
@@ -196,7 +196,7 @@ public class MemberService {
 
         String loginId = email != null ? email : provider + "_" + socialId;
         String nickname = name != null ? name : "소셜회원";
-        String loginPw = "SOCIAL_LOGIN";
+        String loginPw = Ut.sha256("SOCIAL_LOGIN");
 
         // ✅ 전용 insert 사용
         memberRepository.doJoinBySocial(

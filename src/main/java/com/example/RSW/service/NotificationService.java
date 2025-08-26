@@ -78,7 +78,7 @@ public class NotificationService {
 		// 각 관리자에게 알림을 전송
 		for (Member admin : admins) {
 			String title = vetName + "님이 인증서를 등록하였습니다."; // 알림 제목
-			String link = "/adm/member/list?memberId=" + vetMemberId; // 인증서 상세 페이지 링크
+			String link = "/adm/article/list"; // 인증서 상세 페이지 링크
 			// 알림 전송
 			addNotification(admin.getId(), vetMemberId, "VET_CERT_UPLOAD", title, link);
 		}
