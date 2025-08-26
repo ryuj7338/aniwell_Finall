@@ -1544,13 +1544,16 @@
 			// 차트 렌더 (존별 1줄)
 			function renderChart(list) {
 				chartArea.innerHTML = '';
+				const wrapper = document.getElementById('activityChartWrapper'); // ✅ 추가
 
 				if (!Array.isArray(list) || list.length === 0) {
 					noDataEl?.classList.remove('hidden');
+					wrapper?.classList.add('hidden');      // ✅ 그리드/눈금 숨김
 					renderLegend([]);
 					return;
 				}
 				noDataEl?.classList.add('hidden');
+				wrapper?.classList.remove('hidden');
 
 				list.sort((a, b) => new Date(a.enteredAt) - new Date(b.enteredAt));
 				const SOD = new Date(); SOD.setHours(0,0,0,0);
