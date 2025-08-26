@@ -97,7 +97,7 @@ body {
 ========================= */
 .icon {
 	top: 70%;
-	left: 66%;
+	right: 10%;
 	position: absolute;
 	display: flex;
 }

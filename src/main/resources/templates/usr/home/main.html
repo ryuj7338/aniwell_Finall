@@ -15,7 +15,7 @@
 
 </head>
 
-<body class="bg-gradient-to-b from-[#E4F0B9] to-[#FCDCA9] min-w-min w-screen">
+<body class="bg-gradient-to-b from-[#E4F0B9] to-[#FCDCA9] min-w-[1400px] w-screen">
 	<div class="bg-gradient-to-b from-[#E4F0B9] to-[#FCDCA9] section section-top mx-auto z-0 w-full h-[100dvh]">
 		<!-- TOP -->
 		<svg class="absolute inset-0 w-full h-[100dvh] z-[-9]" viewBox="0 0 960 540"
@@ -271,7 +271,7 @@
 				<!-- 오른쪽: 애니메이션 요소 -->
 				<div class="relative h-[40vh] md:h-[60vh] overflow-visible">
 					<!-- 원하는 이미지/SVG/Lottie로 교체 가능 -->
-					<div class="right-anim absolute right-0 top-4 w-[80%] z-0">
+					<div class="right-anim absolute right-0 top-4 max-w-[400px] w-[80%] z-0">
 						<img src="https://imgur.com/shebTBU.png" class="p-1" />
 						<img src="https://imgur.com/H3z8KZi.png" class="p-1" />
 					</div>
@@ -546,11 +546,11 @@
 				<!-- 오른쪽: 여러 레이어를 순차 애니메이션 -->
 				<div class="relative h-[45vh] md:h-[65vh] top-24 z-[0] right-[-10%]">
 					<img src="https://imgur.com/SFR1lNF.png"
-						class="sec3-layer shadow absolute right-0 bottom-0 w-[54%] right-[45%]" />
+						class="sec3-layer shadow absolute right-0 bottom-0 max-w-[400px] w-[54%] right-[45%]" />
 					<img src="https://imgur.com/i63DA9X.png"
-						class="sec3-dog shadow absolute right-[10%] bottom-[3%] w-[50%] opacity-0" />
+						class="sec3-dog shadow absolute right-[10%] bottom-[3%] w-[50%] max-w-[300px] opacity-0" />
 					<img src="https://imgur.com/EuTxtSU.png"
-						class="sec3-heart shadow absolute right-[10%] top-[2%] w-[50%] opacity-0" />
+						class="sec3-heart shadow absolute right-[10%] top-[2%] max-w-[350px] w-[50%] opacity-0" />
 				</div>
 			</div>
 		</section>
@@ -570,41 +570,43 @@
 						바로 보여드리면 상담이 빠르고 놓치는 부분이 줄어요.
 					</p>
 				</div>
-				
-				
-				<div class="flex">
+
+
+				<div class="flex rlative">
 					<!-- #1 -->
-					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
-					     width="20" role="img" aria-label="원형 안의 숫자 1">
-					  <circle cx="50" cy="50" r="46" fill="#5DB0FF"/>
-					  <text x="50" y="50"
-					        text-anchor="middle" dominant-baseline="central"
-					        fill="#ffffff" font-size="56" font-weight="700"
-					        font-family="system-ui, -apple-system, Segoe UI, Roboto, 'Noto Sans KR', sans-serif">1</text>
-					</svg>
+					<div class="absolute top-[30%] left-[20%]">
+						<svg class="" xmlns="http://www.w3.org/2000/svg"
+							viewBox="0 0 100 100" width="20" role="img" aria-label="원형 안의 숫자 1">
+							<circle cx="50" cy="50" r="46" fill="#5DB0FF" />
+							<text x="50" y="50" text-anchor="middle" dominant-baseline="central" fill="#ffffff"
+								font-size="56" font-weight="700"
+								font-family="system-ui, -apple-system, Segoe UI, Roboto, 'Noto Sans KR', sans-serif">1</text>
+						</svg>
+						<div class="w-32">
+							<img src="https://imgur.com/h6DFj0r.png" />
+						</div>
+					</div>
 
 					<!-- #2 -->
-					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
-					     width="20" role="img" aria-label="원형 안의 숫자 2">
-					  <circle cx="50" cy="50" r="46" fill="#00C896"/>
-					  <text x="50" y="50"
-					        text-anchor="middle" dominant-baseline="central"
-					        fill="#ffffff" font-size="56" font-weight="700"
-					        font-family="system-ui, -apple-system, Segoe UI, Roboto, 'Noto Sans KR', sans-serif">2</text>
+					<svg class="absolute top-[34%]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="20"
+						role="img" aria-label="원형 안의 숫자 2">
+						<circle cx="50" cy="50" r="46" fill="#00C896" />
+						<text x="50" y="50" text-anchor="middle" dominant-baseline="central" fill="#ffffff"
+							font-size="56" font-weight="700"
+							font-family="system-ui, -apple-system, Segoe UI, Roboto, 'Noto Sans KR', sans-serif">2</text>
 					</svg>
 
 					<!-- #3 -->
-					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
-					     width="20" role="img" aria-label="원형 안의 숫자 3">
-					  <circle cx="50" cy="50" r="46" fill="#FF7A59"/>
-					  <text x="50" y="50"
-					        text-anchor="middle" dominant-baseline="central"
-					        fill="#ffffff" font-size="56" font-weight="700"
-					        font-family="system-ui, -apple-system, Segoe UI, Roboto, 'Noto Sans KR', sans-serif">3</text>
+					<svg class="absolute top-[30%] right-[20%]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
+						width="20" role="img" aria-label="원형 안의 숫자 3">
+						<circle cx="50" cy="50" r="46" fill="#FF7A59" />
+						<text x="50" y="50" text-anchor="middle" dominant-baseline="central" fill="#ffffff"
+							font-size="56" font-weight="700"
+							font-family="system-ui, -apple-system, Segoe UI, Roboto, 'Noto Sans KR', sans-serif">3</text>
 					</svg>
 
-					
-					
+
+
 				</div>
 			</div>
 		</section>
