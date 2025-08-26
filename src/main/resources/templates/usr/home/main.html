@@ -226,23 +226,23 @@
 			</div>
 
 
-		</div>
-		<div class="icon z-10 pt-12">
+			<div class="icon z-10 pt-12">
 
-			<a class="btn btn-4" th:if="${!rq.isLogined}" th:href="@{/usr/member/login}">
-				sign in/up
-			</a>
+				<a class="btn btn-4" th:if="${!rq.isLogined}" th:href="@{/usr/member/login}">
+					sign in/up
+				</a>
 
-			<!-- 2) 로그인 O: 등급/자격에 따라 분기 -->
-			<!--    - 예시: 수의사 인증(vetCertApproved == 1) 또는 높은 권한(authLevel >= 7)면 Vet 페이지
-						          - 그 외엔 Pet 리스트로 (memberId 전달) -->
-			<div th:if="${rq.isLogined}">
-				<button class="btn btn-4 hidden" id="vetList" type="button">
-					Let's go!
-				</button>
-				<button class="btn btn-4 hidden" id="petlist" type="button">
-					Let's go!
-				</button>
+				<!-- 2) 로그인 O: 등급/자격에 따라 분기 -->
+				<!--    - 예시: 수의사 인증(vetCertApproved == 1) 또는 높은 권한(authLevel >= 7)면 Vet 페이지
+								          - 그 외엔 Pet 리스트로 (memberId 전달) -->
+				<div th:if="${rq.isLogined}">
+					<button class="btn btn-4 hidden" id="vetList" type="button">
+						Let's go!
+					</button>
+					<button class="btn btn-4 hidden" id="petlist" type="button">
+						Let's go!
+					</button>
+				</div>
 			</div>
 		</div>
 
@@ -575,8 +575,8 @@
 				<div class="flex rlative">
 					<!-- #1 -->
 					<div class="absolute top-[30%] left-[20%]">
-						<svg class="" xmlns="http://www.w3.org/2000/svg"
-							viewBox="0 0 100 100" width="20" role="img" aria-label="원형 안의 숫자 1">
+						<svg  class="absolute left-1/2 -top-1/4 -translate-x-1/2 w-8 h-8 pointer-events-none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="20" role="img"
+							aria-label="원형 안의 숫자 1">
 							<circle cx="50" cy="50" r="46" fill="#5DB0FF" />
 							<text x="50" y="50" text-anchor="middle" dominant-baseline="central" fill="#ffffff"
 								font-size="56" font-weight="700"
