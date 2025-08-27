@@ -2,6 +2,7 @@ package com.example.RSW.service;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
+import com.google.firebase.auth.FirebaseToken;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -191,25 +192,58 @@ public class MemberService {
 
     // ✅ 소셜 로그인 시 기존 회원 조회 or 신규 생성
     public Member getOrCreateSocialMember(String provider, String socialId, String email, String name) {
-        Member member = memberRepository.getMemberBySocial(provider, socialId);
-        if (member != null) return member;
+        provider = provider == null ? "" : provider.trim().toLowerCase();
 
-        String loginId = email != null ? email : provider + "_" + socialId;
-        String nickname = name != null ? name : "소셜회원";
-        String loginPw = Ut.sha256("SOCIAL_LOGIN");
+        // 1) (provider, socialId) 1차 조회
+        Member bySocial = memberRepository.getMemberBySocial(provider, socialId);
+        if (bySocial != null) {
+            // 이름 플레이스홀더 보정
+            if (!Ut.isEmpty(name)) {
+                String cur = bySocial.getName();
+                if (Ut.isEmpty(cur) || "신규 사용자".equals(cur) || "신규사용자".equals(cur)) {
+                    memberRepository.modify(bySocial.getId(), null, name, null, null, null, null, null);
+                }
+            }
+            // uid 저장(짧게)
+            String uidShort = provider + "_" + Ut.sha256(provider + ":" + socialId).substring(0, 20);
+            memberRepository.updateUidById(bySocial.getId(), uidShort);
+            return memberRepository.getMemberById(bySocial.getId()); // uid 채워진 객체 반환
+        }
 
-        // ✅ 전용 insert 사용
-        memberRepository.doJoinBySocial(
-                loginId,
-                loginPw,
-                provider,
-                socialId,
-                name,
-                nickname,
-                email
-        );
+        // 2) 이메일로 기존 계정 연결
+        if (!Ut.isEmpty(email)) {
+            Member byEmail = memberRepository.findByEmail(email);
+            if (byEmail != null) {
+                byEmail.setSocialProvider(provider);
+                byEmail.setSocialId(socialId);
+                memberRepository.updateSocialInfo(byEmail);
 
-        return memberRepository.getMemberBySocial(provider, socialId);
+                if (!Ut.isEmpty(name)) {
+                    String cur = byEmail.getName();
+                    if (Ut.isEmpty(cur) || "신규 사용자".equals(cur) || "신규사용자".equals(cur)) {
+                        memberRepository.modify(byEmail.getId(), null, name, null, null, null, null, null);
+                    }
+                }
+                String uidShort = provider + "_" + Ut.sha256(provider + ":" + socialId).substring(0, 20);
+                memberRepository.updateUidById(byEmail.getId(), uidShort);
+                return memberRepository.getMemberById(byEmail.getId());
+            }
+        }
+
+        // 3) 완전 신규
+        String loginId = !Ut.isEmpty(email) ? email : (provider + "_" + socialId);
+        String nickname = !Ut.isEmpty(name) ? name : "소셜회원";
+        String encPw = Ut.sha256("SOCIAL_LOGIN");
+
+        memberRepository.doJoinBySocial(loginId, encPw, provider, socialId, name, nickname, email);
+
+        Member created = memberRepository.getMemberBySocial(provider, socialId);
+        if (created != null) {
+            String uidShort = provider + "_" + Ut.sha256(provider + ":" + socialId).substring(0, 20);
+            memberRepository.updateUidById(created.getId(), uidShort);
+            return memberRepository.getMemberById(created.getId());
+        }
+        return null;
     }
 
 
@@ -217,7 +251,7 @@ public class MemberService {
     public Member getOrCreateByEmail(String email, String name, String provider) {
         Member member = memberRepository.findByEmail(email);
         if (member == null) {
-            String loginId = provider + "_" + email.split("@")[0];
+            String loginId = email;
             String loginPw = Ut.sha256("temp_pw_" + provider);
 
             memberRepository.doJoinBySocial(
@@ -332,14 +366,28 @@ public class MemberService {
     }
 
     public Member findByUid(String uid) {
+        if (Ut.isEmpty(uid)) return null;
+
         Member member = memberRepository.findByUid(uid);
-        if (member == null && uid != null) {
-            String provider = uid.contains("_") ? uid.split("_")[0] : "google";
-            String socialId = uid.contains("_") ? uid.split("_")[1] : uid;
-            member = getOrCreateSocialMember(provider, socialId, null, "신규사용자");
+        if (member != null) return member;
+
+        // (선택) 레거시 보정: uid가 "provider_socialId" 꼴이면 기존 소셜행과 연결
+        if (uid.contains("_")) {
+            String[] parts = uid.split("_", 2);
+            String provider = parts[0];
+            String socialId = parts[1];
+            Member bySocial = memberRepository.getMemberBySocial(provider, socialId);
+            if (bySocial != null) {
+                memberRepository.updateUidById(bySocial.getId(), uid);
+                return bySocial;
+            }
         }
-        return member;
+
+        // ⚠️ 여기서 절대 신규 생성하지 말 것 (근본 원인)
+        log.warn("findByUid: unknown uid={}, skip auto-create", uid);
+        return null;
     }
+
 
     public Member findCachedMemberOrDb(String uid) {
         String redisKey = "firebase:member:" + uid;
@@ -378,6 +426,87 @@ public class MemberService {
 
     public Member getMemberByCellphone(String cellphone) {
         return memberRepository.getMemberByCellphone(cellphone);
+    }
+
+    public String extractProvider(FirebaseToken token) {
+        try {
+            Object firebase = token.getClaims().get("firebase");
+            if (firebase instanceof java.util.Map) {
+                Object p = ((java.util.Map<?, ?>) firebase).get("sign_in_provider");
+                if (p != null) {
+                    String v = String.valueOf(p).toLowerCase();
+                    if ("google.com".equals(v)) return "google";
+                    if ("custom".equals(v))    return "custom";
+                    return v;
+                }
+            }
+        } catch (Exception ignore) {}
+        return null;
+    }
+
+    public Member syncGoogleProfileFromFirebaseToken(FirebaseToken token) {
+        if (token == null) return null;
+        String uid = token.getUid();
+        String email = token.getEmail();
+        String name = token.getName();
+        String picture = token.getPicture();
+
+        Member member = findByUid(uid);
+        if (member == null && email != null && !email.isEmpty()) {
+            Member byEmail = findByEmail(email);
+            if (byEmail != null) {
+                byEmail.setSocialProvider("google");
+                byEmail.setSocialId("google_" + (email != null ? email : uid));
+                memberRepository.updateSocialInfo(byEmail);
+                memberRepository.updateUidById(byEmail.getId(), uid);
+                member = memberRepository.getMemberById(byEmail.getId());
+            } else {
+                String displayName = (name != null && !name.isEmpty()) ? name : "구글사용자";
+                member = getOrCreateByEmail(email, displayName, "google");
+                memberRepository.updateUidById(member.getId(), uid);
+                member = memberRepository.getMemberById(member.getId());
+            }
+        }
+        if (member == null) return null;
+
+        boolean needsUpdate = false;
+        String newName = member.getName();
+        if (name != null && !name.isEmpty()
+                && (newName == null || newName.isEmpty() || "구글사용자".equals(newName) || "신규 사용자".equals(newName) || "신규사용자".equals(newName))) {
+            newName = name; needsUpdate = true;
+        }
+        String newNickname = member.getNickname();
+        if (name != null && !name.isEmpty()
+                && (newNickname == null || newNickname.isEmpty() || "구글사용자".equals(newNickname) || "신규 사용자".equals(newNickname) || "신규사용자".equals(newNickname))) {
+            newNickname = name.trim(); needsUpdate = true;
+        }
+        String newPhoto = member.getPhoto();
+        if (picture != null && !picture.isEmpty() && !picture.equals(newPhoto)) {
+            newPhoto = picture; needsUpdate = true;
+        }
+        if (needsUpdate) {
+            memberRepository.modifyWithoutPw(
+                    member.getId(),
+                    newName,
+                    newNickname,
+                    member.getCellphone() == null ? null : member.getCellphone().replaceAll("\\D", ""),
+                    member.getEmail(),
+                    newPhoto,
+                    member.getAddress()
+            );
+            member = memberRepository.getMemberById(member.getId());
+        }
+
+        // provider 표기 통일
+        if (member.getSocialProvider() == null || member.getSocialProvider().isEmpty()
+                || "google.com".equalsIgnoreCase(member.getSocialProvider())) {
+            member.setSocialProvider("google");
+            member.setSocialId("google_" + (email != null ? email : uid));
+            memberRepository.updateSocialInfo(member);
+            member = memberRepository.getMemberById(member.getId());
+        }
+
+        return member;
     }
 
 }

@@ -23,7 +23,7 @@ spring:
       client-secret: ""
       redirect-uri: "http://localhost:8080/usr/member/google"
   session:
-    store-type: none   # Redis 비활성화
+    store-type: redis   # Redis 비활성화
 #    store-type: redis # Redis 활성화
   autoconfigure:
     exclude:

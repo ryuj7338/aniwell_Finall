@@ -1,12 +1,51 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function CheckPwPage() {
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [checking, setChecking] = useState(true);
   const router = useRouter();
+
+  // ✅ 접속 시 자동 우회 로직
+  useEffect(() => {
+    (async () => {
+      try {
+        // 1) 내 정보에서 socialProvider 확인
+        const meRes = await fetch("http://localhost:8080/api/member/getUsrInfo", {
+          credentials: "include",
+        });
+        if (meRes.ok) {
+          const me = await meRes.json();
+          const isSocial =
+            !!me?.socialProvider && String(me.socialProvider).trim() !== "";
+          if (isSocial) {
+            router.replace("/my-page/edit");
+            return;
+          }
+        }
+
+        // 2) 보수: 빈 비번으로 체크 → SOCIAL_OK면 우회
+        const res = await fetch("http://localhost:8080/usr/member/doCheckPw", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ loginPw: "" }),
+          credentials: "include",
+        });
+        const txt = await res.text();
+        if (txt.includes("SOCIAL_OK")) {
+          router.replace("/my-page/edit");
+          return;
+        }
+      } catch {
+        // 무시하고 폼 노출
+      } finally {
+        setChecking(false);
+      }
+    })();
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,7 +59,7 @@ export default function CheckPwPage() {
       });
 
       const text = await res.text();
-      if (text === "OK" || text === "SOCIAL_OK") {
+      if (text.includes("OK")) {
         router.push("/my-page/edit");
       } else {
         setErrorMsg(text);
@@ -30,6 +69,16 @@ export default function CheckPwPage() {
       setErrorMsg("요청 중 오류 발생");
     }
   };
+
+  if (checking) {
+    return (
+      <section className="mt-12 text-lg px-4">
+        <div className="mx-auto max-w-xl bg-white p-6 rounded-xl shadow-md text-center">
+          확인 중…
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="mt-12 text-lg px-4">
