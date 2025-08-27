@@ -158,7 +158,7 @@ public class UsrMemberController {
     public ResultData doLogin(HttpServletRequest req, HttpServletResponse resp, String loginId, String loginPw,
                               @RequestParam(defaultValue = "/") String afterLoginUri) {
 
-        Rq rq = (Rq) req.getSession().getAttribute("rq");
+        Rq rq = (Rq) req.getAttribute("rq");              // ✅ 요청 스코프에서만 획득
 
         if (rq == null) {
             rq = new Rq(req, resp, memberService);
@@ -201,6 +201,10 @@ public class UsrMemberController {
         String uid = member.getLoginId() + "@aniwell.com";
         String firebaseToken = memberService.createFirebaseCustomToken(uid);
         req.getSession().setAttribute("firebaseToken", firebaseToken);
+
+        // ✅ 추가: 일반 로그인 우선 잠금(소셜 토큰이 다시 세션을 덮지 못하게)
+        req.getSession().setAttribute("authSource", "local");
+        req.getSession().setAttribute("authSourceAt", System.currentTimeMillis());
 
         // 성공 응답 (JSON)
         Map<String, Object> data = new HashMap<>();
@@ -339,32 +343,47 @@ public class UsrMemberController {
                            @RequestParam(required = false) MultipartFile photoFile,
                            @RequestParam String address) {
 
+        long t0 = System.currentTimeMillis();
         Rq rq = (Rq) req.getAttribute("rq");
 
-        if (Ut.isEmptyOrNull(name)) return Ut.jsHistoryBack("F-3", "이름을 입력하세요.");
-        if (Ut.isEmptyOrNull(nickname)) return Ut.jsHistoryBack("F-4", "닉네임을 입력하세요.");
-        if (Ut.isEmptyOrNull(cellphone)) return Ut.jsHistoryBack("F-5", "전화번호를 입력하세요.");
-        if (Ut.isEmptyOrNull(email)) return Ut.jsHistoryBack("F-6", "이메일을 입력하세요.");
-        if (Ut.isEmptyOrNull(address)) return Ut.jsHistoryBack("F-7", "주소를 입력하세요.");
+        if (Ut.isEmptyOrNull(name)) {
+            return Ut.jsHistoryBack("F-3", "이름을 입력하세요.");
+        }
+        if (Ut.isEmptyOrNull(nickname)) {
+            return Ut.jsHistoryBack("F-4", "닉네임을 입력하세요.");
+        }
+        if (Ut.isEmptyOrNull(cellphone)) {
+            return Ut.jsHistoryBack("F-5", "전화번호를 입력하세요.");
+        }
+        if (Ut.isEmptyOrNull(email)) {
+            return Ut.jsHistoryBack("F-6", "이메일을 입력하세요.");
+        }
+        if (Ut.isEmptyOrNull(address)) {
+            return Ut.jsHistoryBack("F-7", "주소를 입력하세요.");
+        }
 
         // 정규화
-        String normCellphone = cellphone.replaceAll("\\D", "");      // 숫자만
-        String normEmail = normalizeEmail(email);                    // trim + lower
+        String normCellphone = cellphone.replaceAll("\\D", "");
+        String normEmail = normalizeEmail(email);
 
-        // 형식 검증
-        if (!isValidEmail(normEmail)) {
-            return Ut.jsHistoryBack("F-6", "이메일 형식이 올바르지 않습니다.");
+        boolean isKakaoPlaceholder = normEmail != null && normEmail.endsWith("@noemail.kakao");
+
+        if (!isKakaoPlaceholder) {
+            boolean emailValid = isValidEmail(normEmail);
+            boolean domainAllowed = isAllowedEmailDomain(normEmail);
+            if (!emailValid || !domainAllowed) {
+                return Ut.jsHistoryBack("F-6", "이메일 형식이 올바르지 않습니다.");
+            }
         }
-        if (!isAllowedEmailDomain(normEmail)) {
-            return Ut.jsHistoryBack("F-6", "이메일 형식이 올바르지 않습니다.");
-        }
-        if (!normCellphone.matches("^(010\\d{8}|01[16789]\\d{7})$")) {
+
+        boolean phoneRegexOk = normCellphone.matches("^(010\\d{8}|01[16789]\\d{7})$");
+        if (!phoneRegexOk) {
             return Ut.jsHistoryBack("F-5", "전화번호 형식이 올바르지 않습니다.");
         }
 
         int memberId = rq.getLoginedMemberId();
 
-        // 본인 제외 중복 체크
+        // 중복 체크
         Member emailOwner = memberService.getMemberByEmail(normEmail);
         if (emailOwner != null && emailOwner.getId() != memberId) {
             return Ut.jsHistoryBack("F-6", "이미 사용 중인 이메일입니다.");
@@ -380,12 +399,10 @@ public class UsrMemberController {
             return Ut.jsHistoryBack("F-5", "이미 사용 중인 전화번호입니다.");
         }
 
-
         String photoUrl = null;
-
-        // 클라우디너리 업로드
         if (photoFile != null && !photoFile.isEmpty()) {
             try {
+                long up0 = System.currentTimeMillis();
                 Map uploadResult = cloudinary.uploader().upload(photoFile.getBytes(), ObjectUtils.emptyMap());
                 photoUrl = (String) uploadResult.get("secure_url");
             } catch (IOException e) {
@@ -393,6 +410,7 @@ public class UsrMemberController {
             }
         }
 
+        // 수정 호출
         ResultData modifyRd;
         if (Ut.isEmptyOrNull(loginPw)) {
             modifyRd = memberService.modifyWithoutPw(memberId, name, nickname, normCellphone, normEmail, photoUrl, address);
@@ -401,6 +419,7 @@ public class UsrMemberController {
         }
 
         Member updatedMember = memberService.getMemberById(memberId);
+
         rq.setLoginedMember(updatedMember);
 
         return Ut.jsReplace(modifyRd.getResultCode(), modifyRd.getMsg(), "../member/myPage");
@@ -504,7 +523,7 @@ public class UsrMemberController {
     @RequestMapping("/usr/member/doFindLoginId")
     @ResponseBody
     public ResultData doFindLoginId(@RequestParam(defaultValue = "/usr/member/login") String afterFindLoginIdUri,
-                                @RequestParam("name") String name, @RequestParam("email") String email) {
+                                    @RequestParam("name") String name, @RequestParam("email") String email) {
 
         Member member = memberService.getMemberByNameAndEmail(name, normalizeEmail(email)); // 정규화 전달
 
@@ -525,7 +544,7 @@ public class UsrMemberController {
     @RequestMapping("/usr/member/doFindLoginPw")
     @ResponseBody
     public ResultData doFindLoginPw(@RequestParam(defaultValue = "/") String afterFindLoginPwUri, String loginId,
-                                String email) {
+                                    String email) {
 
         Member member = memberService.getMemberByLoginId(loginId);
 
@@ -758,11 +777,10 @@ public class UsrMemberController {
             req.getSession().setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
 
             // ✅ Firebase 토큰 생성 및 Redis 7일 저장
-            String uid = member.getSocialProvider() + "_" + member.getSocialId();
+            String uid = member.getUid(); // ← 서비스에서 이미 uid 저장 & 재조회됨
             String firebaseToken = memberService.createFirebaseCustomToken(uid);
             req.getSession().setAttribute("firebaseToken", firebaseToken);
-
-            redisTemplate.opsForValue().set("firebase:token:" + member.getUid(), firebaseToken, 7, TimeUnit.DAYS); // ✅ 변경
+            redisTemplate.opsForValue().set("firebase:token:" + uid, firebaseToken, 7, TimeUnit.DAYS);
 
             // 6️⃣ 부모창으로 이메일 전달
             resp.setContentType("text/html; charset=UTF-8");
@@ -831,7 +849,6 @@ public class UsrMemberController {
 
                 Rq rq = new Rq(req, resp, memberService);
                 rq.login(member);
-                req.getSession().setAttribute("rq", rq);
 
                 resp.setContentType("text/html; charset=UTF-8");
                 PrintWriter out = resp.getWriter();
@@ -884,7 +901,6 @@ public class UsrMemberController {
 
             Rq rq = new Rq(req, resp, memberService);
             rq.login(member);
-            req.getSession().setAttribute("rq", rq);
 
             return ResponseEntity.ok("자동 로그인 성공");
         } catch (Exception e) {
@@ -912,6 +928,15 @@ public class UsrMemberController {
             Map<String, Object> tokenResponse = restTemplate.postForObject(
                     "https://oauth2.googleapis.com/token", params, Map.class
             );
+
+
+            if (tokenResponse == null || tokenResponse.get("access_token") == null) {
+                resp.setContentType("text/html; charset=UTF-8");
+                PrintWriter out = resp.getWriter();
+                out.println("<script>alert('구글 토큰 발급 실패'); window.close();</script>");
+                return;
+            }
+
             String accessToken = (String) tokenResponse.get("access_token");
 
             // 2️⃣ 사용자 정보 요청
@@ -927,6 +952,13 @@ public class UsrMemberController {
             );
 
             Map<String, Object> userInfo = userInfoResponse.getBody();
+            if (userInfo == null) {
+                resp.setContentType("text/html; charset=UTF-8");
+                PrintWriter out = resp.getWriter();
+                out.println("<script>alert('구글 사용자 정보 조회 실패'); window.close();</script>");
+                return;
+            }
+
             String email = (String) userInfo.get("email");
             String name = (String) userInfo.get("name");
             String socialId = (String) userInfo.get("id");
@@ -935,9 +967,13 @@ public class UsrMemberController {
             Member member = memberService.getOrCreateSocialMember("google", socialId, email, name);
 
             // 4️⃣ Firebase 토큰 발급 및 Redis 7일 캐싱
-            String uid = "google_" + socialId;
+            String uid = member.getUid(); // DB 저장된 uid
             String firebaseToken = memberService.createFirebaseCustomToken(uid);
-            redisTemplate.opsForValue().set("firebase:token:" + member.getUid(), firebaseToken, 7, TimeUnit.DAYS); // ✅ 변경
+
+            try {
+                redisTemplate.opsForValue().set("firebase:token:" + uid, firebaseToken, 7, java.util.concurrent.TimeUnit.DAYS);
+            } catch (Exception re) {
+            }
 
             // 5️⃣ Spring Security 등록 + 세션 저장
             UsernamePasswordAuthenticationToken authentication =
@@ -949,6 +985,9 @@ public class UsrMemberController {
             req.getSession().setAttribute("loginedMember", member);
             req.getSession().setAttribute("firebaseToken", firebaseToken);
 
+            Rq rq = new Rq(req, resp, memberService);
+            rq.login(member);
+
             // 6️⃣ 부모창 메시지
             resp.setContentType("text/html; charset=UTF-8");
             PrintWriter out = resp.getWriter();
@@ -956,7 +995,7 @@ public class UsrMemberController {
             out.println("window.opener.postMessage('socialLoginSuccess', '*');");
             out.println("window.close();");
             out.println("</script>");
-
+            out.flush();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -964,7 +1003,9 @@ public class UsrMemberController {
                 resp.setContentType("text/html; charset=UTF-8");
                 PrintWriter out = resp.getWriter();
                 out.println("<script>alert('구글 로그인 실패'); window.close();</script>");
-            } catch (Exception ignored) {}
+                out.flush();
+            } catch (Exception ignored) {
+            }
         }
     }
 
@@ -1005,9 +1046,9 @@ public class UsrMemberController {
             Member member = memberService.getOrCreateSocialMember("naver", socialId, email, name);
 
             // 4️⃣ Firebase 토큰 생성 및 Redis 7일 저장
-            String uid = member.getSocialProvider() + "_" + member.getSocialId();
+            String uid = member.getUid();
             String firebaseToken = memberService.createFirebaseCustomToken(uid);
-            redisTemplate.opsForValue().set("firebase:token:" + member.getUid(), firebaseToken, 7, TimeUnit.DAYS); // ✅ 변경
+            redisTemplate.opsForValue().set("firebase:token:" + uid, firebaseToken, 7, TimeUnit.DAYS);
 
             // 5️⃣ Spring Security 세션 등록
             CustomUserDetails userDetails = new CustomUserDetails(member);
@@ -1057,35 +1098,62 @@ public class UsrMemberController {
 
         String idToken = body.get("idToken");
 
+        // 0) 이미 소셜(네이버/카카오)로 확정된 세션이면 덮지 않음
+        Object authSource = req.getSession().getAttribute("authSource");
+        if ("social-fixed".equals(authSource)) {
+            return ResultData.from("S-2", "세션 유지: 소셜 우선");
+        }
+
+        // 1) 구글 플래그 확인(구글 경로에서만 진행)
+        Boolean allow = (Boolean) req.getSession().getAttribute("allowFirebaseLogin");
+        String expectProvider = (String) req.getSession().getAttribute("expectProvider");
+        if (!Boolean.TRUE.equals(allow) || !"google".equals(expectProvider)) {
+            return ResultData.from("S-0", "무시됨: 구글 절차 아님");
+        }
+
         try {
-            // Redis 캐시 확인
-            String tokenCacheKey = "firebase:tokenToUid:" + idToken;
-            String cachedUid = redisTemplate.opsForValue().get(tokenCacheKey);
-            if (cachedUid != null) {
-                Member cachedMember = memberService.findCachedMemberOrDb(cachedUid);
-                setSpringSecuritySession(req, cachedMember);
-                return ResultData.from("S-1", "Redis 기반 세션 로그인 완료");
+            FirebaseToken decoded = FirebaseAuth.getInstance().verifyIdToken(idToken);
+            String uid = decoded.getUid();
+
+            // 구글은 sign_in_provider가 google 또는 custom 모두 허용
+            String prov = memberService.extractProvider(decoded); // null/custom/google 가능
+            if (prov != null && !"google".equals(prov) && !"custom".equals(prov)) {
+                clearGoogleFlags(req);
+                return ResultData.from("S-0", "무시됨: 구글 토큰 아님");
             }
 
-            // Firebase 인증 검증
-            FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(idToken);
-
-            // 첫 로그인 처리
-            Member member = memberService.findByUid(decodedToken.getUid());
+            // 구글 프로필 동기화(이름/닉네임/사진) + provider='google'
+            Member member = memberService.findByUid(uid);
             if (member == null) {
-                // 신규 회원 생성 로직은 memberService 내부에서 처리
+                member = memberService.syncGoogleProfileFromFirebaseToken(decoded);
+                if (member == null) {
+                    clearGoogleFlags(req);
+                    return ResultData.from("F-9", "회원 정보를 찾을 수 없습니다.");
+                }
+            } else {
+                // 보수적 동기화
+                member = memberService.syncGoogleProfileFromFirebaseToken(decoded);
+                if (member == null) member = memberService.findByUid(uid);
             }
 
             setSpringSecuritySession(req, member);
-            return ResultData.from("S-1", "첫 로그인 완료");
+            clearGoogleFlags(req);
+
+            return ResultData.from("S-1", "구글 로그인 완료");
 
         } catch (FirebaseAuthException e) {
+            clearGoogleFlags(req);
             return ResultData.from("F-1", "Firebase 인증 실패: " + e.getMessage());
         } catch (Exception e) {
-            return ResultData.from("F-2", "로그인 처리 중 오류 발생");
+            clearGoogleFlags(req);
+            return ResultData.from("F-2", "로그인 처리 중 오류");
         }
     }
 
+    private void clearGoogleFlags(HttpServletRequest req) {
+        req.getSession().removeAttribute("allowFirebaseLogin");
+        req.getSession().removeAttribute("expectProvider");
+    }
 
     // ✅ Spring Security 세션 설정 메서드
     private void setSpringSecuritySession(HttpServletRequest req, Member member) {
@@ -1097,32 +1165,53 @@ public class UsrMemberController {
         req.getSession().setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
     }
 
-    // ✅ 소셜 로그인 (Redis 캐시 활용)
+    // ✅ 소셜 로그인
     @RequestMapping("/usr/member/social-login")
     @ResponseBody
-    public ResultData socialLogin(@RequestParam String email, @RequestParam(required = false) String name) {
+    public ResultData socialLogin(@RequestParam String email,
+                                  @RequestParam(required = false) String name,
+                                  HttpServletRequest req) {
+
+        String lower = email == null ? "" : email.toLowerCase();
+        boolean isGoogle = lower.endsWith("@gmail.com") || lower.endsWith("@googlemail.com");
+        boolean isKakao  = lower.endsWith("@noemail.kakao") || lower.startsWith("kakao_");
+        boolean isNaver  = lower.endsWith("@naver.com");
+
         Member member = memberService.findByEmail(email);
 
+        // 네이버/카카오: 여기서 바로 세션 확정 + 리디렉트용 성공 응답
+        if (isKakao || isNaver) {
+            if (member == null) {
+                return ResultData.from("F-1", "해당 이메일의 회원이 없습니다.");
+            }
+            // 세션/시큐리티 확정
+            setSpringSecuritySession(req, member);
+            // 이후 firebase-session-login이 와도 절대 덮지 않도록 락
+            req.getSession().setAttribute("authSource", "social-fixed");
+
+            return ResultData.from("S-1", "소셜 로그인 완료(네이버/카카오)");
+        }
+
+        // 구글: 기존 흐름(커스텀 토큰 발급) 유지 + 구글 전용 플래그로만 다음 단계 허용
         if (member == null) {
-            member = memberService.getOrCreateByEmail(email, name != null ? name : "구글사용자", "google");
+            member = memberService.getOrCreateByEmail(email, (name != null ? name : "구글사용자"), "google");
         }
+        req.getSession().setAttribute("allowFirebaseLogin", Boolean.TRUE);
+        req.getSession().setAttribute("expectProvider", "google");
+        req.getSession().removeAttribute("authSource"); // 구글은 락 없음
 
-        // Redis 캐시 확인
         String redisKey = "firebase:token:" + member.getUid();
-        String cachedToken = redisTemplate.opsForValue().get(redisKey);
-        if (cachedToken != null) {
-            return ResultData.from("S-1", "캐시된 토큰 사용",
-                    "token", cachedToken,
-                    "provider", member.getSocialProvider());
-        }
+        try {
+            String cached = redisTemplate.opsForValue().get(redisKey);
+            if (cached != null) {
+                return ResultData.from("S-1", "캐시된 토큰 사용", "data1", cached, "provider", "google");
+            }
+        } catch (Exception ignore) {}
 
-        // Firebase Custom Token 생성 후 캐싱
         String firebaseToken = firebaseService.createCustomToken(member);
-        redisTemplate.opsForValue().set(redisKey, firebaseToken, 12, TimeUnit.HOURS);
+        try { redisTemplate.opsForValue().set(redisKey, firebaseToken, 12, TimeUnit.HOURS); } catch (Exception ignore) {}
 
-        return ResultData.from("S-1", "새 토큰 발급",
-                "token", firebaseToken,
-                "provider", member.getSocialProvider());
+        return ResultData.from("S-1", "새 토큰 발급", "data1", firebaseToken, "provider", "google");
     }
 
 }
