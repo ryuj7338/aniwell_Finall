@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 type Member = {
   id: number;
-  regDate: string; // ISO 형식 날짜 문자열로 받음
+  regDate: string;
   updateDate: string;
   loginId: string;
   loginPw: string;
@@ -22,6 +22,10 @@ type Member = {
 
   vetCertUrl: string;
   vetCertApproved: number | null;
+
+  // 소셜 여부 판단용
+  socialProvider?: string | null;
+  socialId?: string | null;
 };
 
 export default function EditPage() {
@@ -51,6 +55,10 @@ export default function EditPage() {
   const [pwMatchMsg, setPwMatchMsg] = useState("");
   const [member, setMember] = useState<Member | null>(null);
 
+  // 소셜 여부 파생
+  const isSocial =
+    !!member?.socialProvider && String(member.socialProvider).trim() !== "";
+
   useEffect(() => {
     fetch("http://localhost:8080/api/member/getUsrInfo", {
       method: "GET",
@@ -60,7 +68,7 @@ export default function EditPage() {
         if (!res.ok) throw new Error("회원정보 불러오기 실패");
         return res.json();
       })
-      .then((data) => {
+      .then((data: Member) => {
         console.log("✅ 불러온 회원정보", data);
         setMember(data);
 
@@ -110,6 +118,7 @@ export default function EditPage() {
     e.preventDefault();
 
     if (
+      !isSocial &&
       pwChangeActive &&
       (form.password.length < 4 || form.password !== form.confirmPassword)
     ) {
@@ -122,25 +131,16 @@ export default function EditPage() {
     formData.append("nickname", form.nickname);
     formData.append("email", form.email);
     formData.append("cellphone", form.cellphone);
-    formData.append("loginPw", form.password);
     formData.append("address", form.address);
 
-    if (pwChangeActive && form.password.trim()) {
-      formData.append("loginPw", form.password.trim());
+    // 일반회원이 비번 변경을 선택한 경우에만 비번 전송
+    if (!isSocial && pwChangeActive && form.password) {
+      formData.append("loginPw", form.password);
     }
 
-    const picked = fileInputRef.current?.files?.[0];
-    if (picked) {
-      formData.append("photoFile", picked);
-    } else if (useDefaultPhoto || !photoChanged) {
-      // 파일을 안 바꿨다면(=photoChanged=false) 기본 이미지 업로드로 대체
-      const blob = await fetch(fallback, { cache: "no-store" }).then((r) =>
-        r.blob()
-      );
-      const file = new File([blob], "default.png", {
-        type: blob.type || "image/png",
-      });
-      formData.append("photoFile", file);
+    if (fileInputRef.current?.files?.[0]) {
+      formData.append("photoFile", fileInputRef.current.files[0]);
+
     }
 
     try {
@@ -229,65 +229,56 @@ export default function EditPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="w-[30%] font-semibold text-gray-700">
-                    이름
+              {/* 소셜이면 비밀번호 섹션 자체를 숨김 */}
+              {!isSocial && (
+                <>
+                  <div className="flex items-center gap-4">
+                    <div className="w-[30%] font-semibold text-gray-700">
+                      비밀번호
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm w-[80%]"
+                      onClick={() => setPwChangeActive(!pwChangeActive)}
+                    >
+                      {pwChangeActive ? "비밀번호 변경 취소" : "비밀번호 변경"}
+                    </button>
                   </div>
-                  <input
-                    type="text"
-                    value={form.name}
-                    onChange={(e) => handleChange("name", e.target.value)}
-                    className="p-2 input input-sm w-[80%] shadow rounded-md border"
-                  />
-                </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="w-[30%] font-semibold text-gray-700">
-                    비밀번호
-                  </div>
-                  <button
-                    type="button"
-                    className="btn btn-outline btn-sm w-[80%]"
-                    onClick={() => setPwChangeActive(!pwChangeActive)}
-                  >
-                    {pwChangeActive ? "비밀번호 변경 취소" : "비밀번호 변경"}
-                  </button>
-                </div>
+                  {pwChangeActive && (
+                    <>
+                      <div className="flex items-center gap-4">
+                        <div className="w-[30%] font-semibold text-gray-700">
+                          새 비밀번호
+                        </div>
+                        <input
+                          type="password"
+                          value={form.password}
+                          onChange={(e) => handleChange("password", e.target.value)}
+                          className="p-2 input input-sm w-[80%] shadow rounded-md border"
+                        />
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="w-[30%] font-semibold text-gray-700">
+                          비밀번호 확인
+                        </div>
+                        <input
+                          type="password"
+                          value={form.confirmPassword}
+                          onChange={(e) =>
+                            handleChange("confirmPassword", e.target.value)
+                          }
+                          className="p-2 input input-sm w-[80%] shadow rounded-md border"
+                        />
+                      </div>
+                      <div className="text-sm text-gray-600 pl-[30%]">
+                        {pwMatchMsg}
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
 
-                {pwChangeActive && (
-                  <>
-                    <div className="flex items-center gap-4">
-                      <div className="w-[30%] font-semibold text-gray-700">
-                        새 비밀번호
-                      </div>
-                      <input
-                        type="password"
-                        value={form.password}
-                        onChange={(e) =>
-                          handleChange("password", e.target.value)
-                        }
-                        className="p-2 input input-sm w-[80%] shadow rounded-md border"
-                      />
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="w-[30%] font-semibold text-gray-700">
-                        비밀번호 확인
-                      </div>
-                      <input
-                        type="password"
-                        value={form.confirmPassword}
-                        onChange={(e) =>
-                          handleChange("confirmPassword", e.target.value)
-                        }
-                        className="p-2 input input-sm w-[80%] shadow rounded-md border"
-                      />
-                    </div>
-                    <div className="text-sm text-gray-600 pl-[30%]">
-                      {pwMatchMsg}
-                    </div>
-                  </>
-                )}
-              </div>
               <div className="flex justify-end mt-4">
                 <button
                   type="button"

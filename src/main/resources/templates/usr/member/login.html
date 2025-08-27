@@ -477,13 +477,6 @@
     }
 
     function validateForm() {
-        // dup_check.js에 추가함
-        // const phone = document.querySelector('[name="cellphone"]');
-        // const phonePattern = /^\d{3}-\d{3,4}-\d{4}$/;
-        // if (!phonePattern.test(phone.value)) {
-        //     alert("전화번호 형식이 올바르지 않습니다. 예: 000-0000-0000");
-        //     return false;
-        // }
 
         const addressInput = document.getElementById("address");
         console.log("🚨 address.value:", addressInput?.value);
@@ -537,15 +530,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 
 <script>
-    // ===== Firebase 설정 =====
-    const firebaseConfig = {
-        apiKey: "AIzaSyCmNd8OplshhbhpJqNzhoDXgKAaLYunl3k",
-        authDomain: "aniwell-2a90b.firebaseapp.com",
-        projectId: "aniwell-2a90b",
-        storageBucket: "aniwell-2a90b.appspot.com",
-        messagingSenderId: "399675409170",
-        appId: "1:399675409170:web:2fb665a85291a8c9a6a9cb"
-    };
+    // ===== 🔥 Firebase 설정(키 넣는 위치) 🔥 =====
+
 
     // 초기화 완료 시점을 보장
     let initFirebaseResolve;

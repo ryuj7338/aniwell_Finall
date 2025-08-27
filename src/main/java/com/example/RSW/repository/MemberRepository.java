@@ -26,10 +26,26 @@ public interface MemberRepository {
 
     Member getMemberByNameAndEmail(@Param("name") String name, @Param("email") String email);
 
-    void modify(int loginedMemberId, String loginPw, String name, String nickname, String cellphone,
-                String email, String photo, String address);
+    int modify(
+            @Param("loginedMemberId") int loginedMemberId,
+            @Param("loginPw") String loginPw,
+            @Param("name") String name,
+            @Param("nickname") String nickname,
+            @Param("cellphone") String cellphone,
+            @Param("email") String email,
+            @Param("photo") String photo,
+            @Param("address") String address
+    );
 
-    void modifyWithoutPw(int loginedMemberId, String name, String nickname, String cellphone, String email, String photo, String address);
+    int modifyWithoutPw(
+            @Param("loginedMemberId") int loginedMemberId,
+            @Param("name") String name,
+            @Param("nickname") String nickname,
+            @Param("cellphone") String cellphone,
+            @Param("email") String email,
+            @Param("photo") String photo,
+            @Param("address") String address
+    );
 
     void withdraw(int id);
 
@@ -71,7 +87,7 @@ public interface MemberRepository {
 
     List<Integer> getAllMemberIds();
 
-    void updateUidById(String uid, int id);
+    int updateUidById(@Param("id") int id, @Param("uid") String uid);
 
     Member findByUid(String uid);
 

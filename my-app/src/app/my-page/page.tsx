@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 type Member = {
   id: number;
-  regDate: string; // ISO 형식 날짜 문자열로 받음
+  regDate: string;
   updateDate: string;
   loginId: string;
   loginPw: string;
@@ -23,6 +23,10 @@ type Member = {
 
   vetCertUrl: string;
   vetCertApproved: number | null;
+
+  // ✅ 추가: 소셜 로그인 여부 판단용
+  socialProvider?: string | null;
+  socialId?: string | null;
 };
 
 export default function MyPage() {
@@ -30,7 +34,13 @@ export default function MyPage() {
   const [member, setMember] = useState<Member | null>(null);
 
   const handleEditClick = () => {
-    router.push("/my-page/checkPw"); // 원하는 경로로 이동
+    const isSocial =
+      !!member?.socialProvider && String(member.socialProvider).trim() !== "";
+    if (isSocial) {
+      router.push("/my-page/edit");      // 소셜: 비번 확인 생략
+    } else {
+      router.push("/my-page/checkPw");   // 일반: 기존 흐름 유지
+    }
   };
 
   useEffect(() => {
@@ -70,7 +80,7 @@ export default function MyPage() {
                 src={
                   member.photo && member.photo.trim() !== ""
                     ? member.photo
-                    : "https://i.imgur.com/OJI4yzC.png" // ✅ 직접 링크여야 함!
+                    : "https://i.imgur.com/OJI4yzC.png"
                 }
                 alt="프로필"
                 className="w-[150%] h-[150%] object-cover"
