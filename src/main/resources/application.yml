@@ -7,8 +7,8 @@ spring:
   mail:
     host: smtp.sendgrid.net
     port: 587
-    username: apikey
-    password:    # 푸시할 떄마다 지우기
+    username: apikey  # 고정 문자열
+    password:    # sendgrid api 키
     properties:
       mail.smtp.auth: true
       mail.smtp.starttls.enable: true
@@ -61,7 +61,7 @@ custom:
 kakao:
   rest-api-key: "79f2a3a73883a82595a2202187f96cc5"    # 로그인
   javascript-key: "dfd275f49b78960a0458d6f6294cbde2"
-  client-secret: "61Ng1JnIKgkQRXgxaJOpY9wo4gffwvn2"
+  client-secret: "61Ng1JnIKgkQRXgxaJOpY9wo4gffwvn2" # 로그인
   redirect-uri: "http://localhost:8080/usr/member/kakao"  #로그인 redirect URI
 cloudinary:
     cloud_name: dfiqktimk

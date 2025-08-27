@@ -72,9 +72,9 @@ export default function MyPage() {
         <div className="mb-6">
           <h2 className="text-xl w-full font-bold border-b pb-">회원정보</h2>
         </div>
-        <div className="flex w-full gap-10 items-center grid grid-cols-3 justify-around mt-10">
+        <div className= "grid grid-cols-3 gap-10 justify-around mt-10">
           {/* 프로필 이미지 */}
-          <div className="relative left-[25%]">
+          <div className="flex justify-center">
             <div className="w-40 h-40 rounded-full overflow-hidden bg-yellow-200">
               <img
                 src={
@@ -83,7 +83,7 @@ export default function MyPage() {
                     : "https://i.imgur.com/OJI4yzC.png"
                 }
                 alt="프로필"
-                className="w-[150%] h-[150%] object-cover"
+                className="w-full h-full object-cover"
               />
             </div>
           </div>
