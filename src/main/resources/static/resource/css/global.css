@@ -57,7 +57,6 @@ body {
 body {
 	font-family: 'MaplestoryOTFLight', sans-serif;
 	font-size: 20px;
-	aspect-ratio: 16/9; /* 가로:세로 비율 고정 */
 	width: 100%; /* 부모 요소 기준으로 꽉 차게 */
 }
 

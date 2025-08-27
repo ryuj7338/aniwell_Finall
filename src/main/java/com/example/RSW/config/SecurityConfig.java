@@ -86,7 +86,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/**").permitAll()
                         /* 정적/공개 리소스 */
                         .requestMatchers(
-                                "/", "/usr/home/main",
+                                "/", "/usr/home/main", "/usr/member/doModify",
                                 "/usr/member/login", "/usr/member/doLogin",
                                 "/usr/member/join", "/usr/member/doJoin",
                                 "/usr/member/doFindLoginId", "/usr/member/doFindLoginPw",

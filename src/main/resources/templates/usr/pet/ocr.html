@@ -32,7 +32,7 @@
 		#ocr .btn.primary { background: linear-gradient(135deg, var(--grad1) 0%, var(--grad2) 100%); color:#0f172a; box-shadow: 0 2px 0 rgba(0,0,0,.04), 0 10px 20px rgba(252,220,169,.35); }
 		#ocr .btn.primary:hover { filter: brightness(0.98); transform: translateY(-1px); }
 		#ocr .btn.primary:active { filter: brightness(0.97); transform: translateY(0); box-shadow:0 1px 0 rgba(0,0,0,.04), 0 6px 14px rgba(252,220,169,.30); }
-		#ocr .btn.ghost { background:transparent; border-color:#e9e9e9; color:#555; }5; }
+		#ocr .btn.ghost { background:transparent; border-color:#e9e9e9; color:#555; };
 
 		#ocr .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:12px 0 16px; }
 
@@ -82,13 +82,13 @@
 		#ocr input::placeholder, #ocr textarea::placeholder { color:#999; opacity:1; }
 	</style>
 </head>
-<body class="bg-gradient-to-b from-[#e4f0b9] to-[#fcdca9] min-h-[770px]">
+<body class="bg-gradient-to-b from-[#e4f0b9] to-[#fcdca9] h-screen min-h-dvh min-w-[1400px]">
 <div class="flex h-screen">
 	<!-- Sidebar -->
 	<div th:replace="common :: siteHeader"></div>
 
 	<!-- Main content -->
-	<main class="main_page min-h-[770px] flex-1 p-6 grid grid-cols-12 gap-4">
+	<main class="main_page h-full overflow-y-auto min-h-dvh box-border flex-1 p-6 grid grid-cols-12 gap-4">
 		<!-- ▼ 메인 그리드에서 전체 폭 차지 -->
 		<div id="ocr" class="col-span-12 w-full">
 			<h2>병원 방문 이력 등록</h2>
