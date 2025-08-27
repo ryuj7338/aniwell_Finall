@@ -1544,17 +1544,19 @@
 			// 차트 렌더 (존별 1줄)
 			function renderChart(list) {
 				chartArea.innerHTML = '';
+				const wrapper = document.getElementById('activityChartWrapper'); // ✅ 추가
 
 				if (!Array.isArray(list) || list.length === 0) {
 					noDataEl?.classList.remove('hidden');
+					wrapper?.classList.add('hidden');      // ✅ 그리드/눈금 숨김
 					renderLegend([]);
 					return;
 				}
 				noDataEl?.classList.add('hidden');
+				wrapper?.classList.remove('hidden');
 
 				list.sort((a, b) => new Date(a.enteredAt) - new Date(b.enteredAt));
-				const startOfDay = new Date(list[0].enteredAt);
-				startOfDay.setHours(0, 0, 0, 0);
+				const SOD = new Date(); SOD.setHours(0,0,0,0);
 
 				const ORDER = ['거실', '침실', '기타'];
 				const zones = Array.from(new Set(list.map(x => x.zoneName)))
@@ -1579,7 +1581,7 @@
 					const entered = new Date(it.enteredAt);
 					const exited = new Date(it.exitedAt);
 					const durSec = Math.max(0, (exited - entered) / 1000);
-					const offSec = Math.max(0, (entered - startOfDay) / 1000);
+					const offSec = Math.max(0, (entered - SOD) / 1000);
 
 					const leftPx = (offSec / 3600) * PX_PER_HOUR;
 					const widthPx = Math.max((durSec / 3600) * PX_PER_HOUR, MIN_BAR_PX);
@@ -1605,20 +1607,65 @@
 			}
 
 			// 서버 호출
+			// 최소 머문 시간(초) — 필요하면 60, 120 등으로 조절
+			const MIN_DUR_SEC = 30;
+
+			function normalizeRow(x) {
+				const s = new Date(x.enteredAt);
+				let e = x.exitedAt ? new Date(x.exitedAt) : null;
+
+				if (!e || e < s) {
+					if (x.durationSec && !Number.isNaN(+x.durationSec)) {
+						e = new Date(s.getTime() + (+x.durationSec) * 1000);
+					} else {
+						e = new Date(s.getTime() + 60 * 1000); // 최소 1분짜리로 가드
+					}
+				}
+				return { ...x, _in: s, _out: e };
+			}
+
+			function startOfDayLocal(d){
+				const x = new Date(d);
+				x.setHours(0,0,0,0);
+				return x;
+			}
+			function endOfDayLocal(d){
+				const x = new Date(d);
+				x.setHours(23,59,59,999);
+				return x;
+			}
+
 			async function loadActivities() {
 				try {
 					const pid = window.petId ?? (Number(localStorage.getItem('selectedPetId')) || null);
 					const url = `/usr/petJ/activity${pid ? `?petId=${pid}` : ''}`;
-					const res = await fetch(url, {headers: {'Accept': 'application/json'}});
+					const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
 					if (!res.ok) throw new Error(`HTTP ${res.status}`);
 					const json = await res.json();
+
+					// 오늘 0~24시
+					const SOD = new Date(); SOD.setHours(0,0,0,0);
+					const EOD = new Date(); EOD.setHours(23,59,59,999);
 
 					let list = [];
 					if (Array.isArray(json?.data1)) list = json.data1;
 					else if (typeof json?.data2 === 'string' && json.data2.trim()) {
-						try {list = JSON.parse(json.data2);} catch { }
+						try { list = JSON.parse(json.data2); } catch {}
 					}
-					list = (list || []).filter(x => x?.enteredAt && x?.exitedAt);
+
+					list = (list || [])
+							.filter(x => x?.zoneName && x?.enteredAt)       // 최소 필드
+							.map(normalizeRow)                               // 종료시각 보정
+							.filter(x => x._out > SOD && x._in < EOD)        // ✅ 오늘과 '겹치면' 통과
+							// 오늘 범위로 클램프
+							.map(x => {
+								const cin  = x._in  < SOD ? new Date(SOD) : x._in;
+								const cout = x._out > EOD ? new Date(EOD) : x._out;
+								return { ...x, enteredAt: cin.toISOString(), exitedAt: cout.toISOString() };
+							})
+							// 최소 지속시간(보정 후 기준)
+							.filter(x => (new Date(x.exitedAt) - new Date(x.enteredAt)) / 1000 >= MIN_DUR_SEC);
+
 					renderChart(list);
 				} catch (e) {
 					console.error('[loadActivities] error:', e);
@@ -1626,12 +1673,21 @@
 				}
 			}
 
-			// 초기화
-			renderTimeGrid();
-			loadActivities();
 
-			// 외부에서 재호출용
-			window.__reloadActivityTimeline = loadActivities;
+			(function initActivityTimeline() {
+				const run = () => {
+					renderTimeGrid();
+					loadActivities();
+					// 패널 닫을 때 새로고침용
+					window.__reloadActivityTimeline = loadActivities;
+				};
+				if (document.readyState === 'loading') {
+					document.addEventListener('DOMContentLoaded', run);
+				} else {
+					run();
+				}
+			})();
+
 		</script>
 
 		<script>
