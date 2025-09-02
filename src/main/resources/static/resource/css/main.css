@@ -97,7 +97,7 @@ body {
 ========================= */
 .icon {
 	top: 70%;
-	left: 66%;
+	right: 10%;
 	position: absolute;
 	display: flex;
 }
@@ -357,74 +357,54 @@ body {
 
 /**/
 
-
-
-/* 속도와 간격을 변수로 제어 */
 .marquee {
-	--gap: 2.5rem;
-	/* 아이템 간 간격 */
-	--duration: 18s;
-	/* 한 바퀴 도는 시간 (작을수록 빠름) */
-	position:absolute;
-	display: flex;
-	/* 트랙 2개를 가로로 나열 */
-	overflow: hidden;
-	width: 100%;
-	padding-block: .5rem;
-}
+    --gap: 2.5rem;     /* 아이템 간 간격 */
+    --duration: 18s;   /* 한 바퀴 시간 (작을수록 빠름) */
+    position:absolute;
+    overflow: hidden;
+    width: 100%;
+    padding-block: .5rem;
+  }
 
-.marquee__track {
-	display: inline-flex;
-	align-items: center;
-	gap: var(--gap);
-	white-space: nowrap;
-	flex: none;
-	/* 내용 길이만큼만 차지 */
-	will-change: transform;
-	animation: marquee var(--duration) linear infinite;
-}
+  /* 🔑 두 트랙을 한 덩어리로 묶고 이것만 움직임 */
+  .marquee__rail {
+    display: flex;
+    width: max-content;        /* 내용 크기만큼 */
+    will-change: transform;
+    animation: scroll var(--duration) linear infinite;
+  }
 
-.marquee__track span {
-	font-weight: 700;
-	font-size: clamp(1rem, 2.2vw, 1.5rem);
-	letter-spacing: 0.02em;
-	color: #0f172a;
-	/* slate-900 */
-}
+  /* 각 트랙 내부 배치 */
+  .marquee__track {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--gap);
+    white-space: nowrap;
+    flex: none;                /* 늘어나지 않게 고정 */
+    margin: 0;                 /* 예기치 않은 마진 제거 */
+  }
 
-/* 호버 시 일시정지 (선택) */
-.marquee:hover .marquee__track {
-	animation-play-state: paused;
-}
+  .marquee__track span {
+    font-weight: 700;
+    font-size: clamp(1rem, 2.2vw, 1.5rem);
+    letter-spacing: .02em;
+    color: #0f172a;
+  }
 
-/* 오른쪽 -> 왼쪽으로 이동 */
-@keyframes marquee {
-	from {
-		transform: translateX(0);
-	}
+  /* 오른쪽 -> 왼쪽. 트랙을 2번 이어놨으니 절반(-50%)만 이동 */
+  @keyframes scroll {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
 
-	to {
-		transform: translateX(-100%);
-	}
-}
+  /* (선택) 가장자리 페이드 */
+  .marquee::before,
+  .marquee::after {
+    content: "";
+    position: absolute; top: 0; bottom: 0; width: 5rem; pointer-events: none;
+  }
 
-/* 가장자리 페이드(선택) - 배경색 맞춰 바꾸세요 */
-.marquee::before,
-.marquee::after {
-	content: "";
-	position: absolute;
-	top: 0;
-	bottom: 0;
-	width: 5rem;
-	pointer-events: none;
-}
-
-.marquee::before {
-	left: 0;
-	background: linear-gradient(to right, white, transparent);
-}
-
-.marquee::after {
-	right: 0;
-	background: linear-gradient(to left, white, transparent);
-}
+  /* (선택) 사용자가 모션 줄이기 설정 시 정지 */
+  @media (prefers-reduced-motion: reduce) {
+    .marquee__rail { animation: none; }
+  }
