@@ -7,7 +7,7 @@ spring:
   mail:
     host: smtp.sendgrid.net
     port: 587
-    username: apikey  # 고정 문자열
+    username:  # 고정 문자열
     password:    # sendgrid api 키
     properties:
       mail.smtp.auth: true
